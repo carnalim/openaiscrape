@@ -1,6 +1,6 @@
 Flask==3.0.0
 beautifulsoup4==4.12.2
-requests==2.31.0
+requests==2.32.2
 Werkzeug==3.0.1
 click==8.1.7
 itsdangerous==2.1.2
