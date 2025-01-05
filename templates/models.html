@@ -3,138 +3,138 @@
 {% block title %}Models{% endblock %}
 
 {% block content %}
-<h1>Available AI Models</h1>
-<p>Below is the current list of AI models available on OpenRouter.ai. Click on a model to view detailed information and providers:</p>
+<div class="models-container">
+    <h1>Available AI Models</h1>
+    
+    <div class="search-container">
+        <input type="text" id="searchInput" placeholder="Search models by name or provider..." class="search-input">
+    </div>
+    
+    <div class="progress-info">
+        <p>Showing {{ available_models }} of {{ total_models }} models ({{ '%0.1f' | format(available_models / total_models * 100) }}% loaded)</p>
+        <div class="progress-bar">
+            <div class="progress" style="width: {{ '%0.1f' | format(available_models / total_models * 100) }}%;"></div>
+        </div>
+    </div>
 
-<div class="model-list">
-    {% for model in models %}
-    <div class="model-item">
-        <a href="/model/{{ model.slug }}" class="model-link">
+    <div class="model-list">
+        {% for model in models %}
+        <div class="model-item" data-name="{{ model.name.lower() }}" data-providers="{{ model.providers|join(' ')|lower }}">
             <div class="model-header">
-                <h2>{{ model.name }}</h2>
-                {% if model.model_id %}
-                <code class="model-id">{{ model.model_id }}</code>
-                {% endif %}
+                <div class="model-title" onclick="toggleModel('{{ model.slug }}')">
+                    <span class="model-name">{{ model.name }}</span>
+                    <div class="provider-tags">
+                        {% for provider in model.providers %}
+                        <span class="provider-tag">{{ provider|title }}</span>
+                        {% endfor %}
+                    </div>
+                    <span class="expand-icon" id="icon-{{ model.slug }}">▼</span>
+                </div>
+                <a href="/model/{{ model.slug }}" class="view-details-btn">View Full Details</a>
             </div>
             
-            <div class="model-info">
-                {% if model.description %}
-                <p class="description">{{ model.description }}</p>
-                {% endif %}
-                
-                {% if model.providers %}
-                <div class="providers-section">
-                    <h3>Providers:</h3>
-                    <ul class="providers-list">
+            <div class="model-details" id="{{ model.slug }}" style="display: none;">
+                <div class="details-grid">
+                    <div class="model-info">
+                        <div class="info-row">
+                            <span class="info-label">Model ID:</span>
+                            <code class="info-value">{{ model.model_id }}</code>
+                        </div>
+                        {% if model.description %}
+                        <div class="info-row">
+                            <span class="info-label">Description:</span>
+                            <span class="info-value description">{{ model.description }}</span>
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    {% if model.providers %}
+                    <div class="provider-details">
                         {% for provider in model.providers %}
-                        <li>{{ provider|title }}</li>
+                        {% if model.provider_details and provider in model.provider_details %}
+                        <div class="provider-section">
+                            <div class="provider-header">
+                                <h3>{{ provider|title }} Details</h3>
+                            </div>
+                            <div class="stats-grid">
+                                {% if model.provider_details[provider].context %}
+                                <div class="stat-item">
+                                    <span class="stat-label">Context Length</span>
+                                    <span class="stat-value">{{ model.provider_details[provider].context }}</span>
+                                </div>
+                                {% endif %}
+                                {% if model.provider_details[provider].max_output %}
+                                <div class="stat-item">
+                                    <span class="stat-label">Max Output</span>
+                                    <span class="stat-value">{{ model.provider_details[provider].max_output }}</span>
+                                </div>
+                                {% endif %}
+                                {% if model.provider_details[provider].input_price %}
+                                <div class="stat-item">
+                                    <span class="stat-label">Input Price</span>
+                                    <span class="stat-value">{{ model.provider_details[provider].input_price }}</span>
+                                </div>
+                                {% endif %}
+                                {% if model.provider_details[provider].output_price %}
+                                <div class="stat-item">
+                                    <span class="stat-label">Output Price</span>
+                                    <span class="stat-value">{{ model.provider_details[provider].output_price }}</span>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endif %}
                         {% endfor %}
-                    </ul>
+                    </div>
+                    {% endif %}
                 </div>
-                {% endif %}
             </div>
-        </a>
+        </div>
+        {% endfor %}
     </div>
-    {% endfor %}
 </div>
 
-{% if not models %}
-<p>No models found. Please try refreshing the page.</p>
-{% endif %}
-
-<style>
-.model-list {
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
-    padding: 1rem 0;
+<script>
+function toggleModel(modelId) {
+    const content = document.getElementById(modelId);
+    const icon = document.getElementById(`icon-${modelId}`);
+    
+    if (content.style.display === 'none') {
+        content.style.display = 'block';
+        icon.classList.add('expanded');
+    } else {
+        content.style.display = 'none';
+        icon.classList.remove('expanded');
+    }
 }
 
-.model-item {
-    background-color: #f8f9fa;
-    border-radius: 8px;
-    transition: transform 0.2s, box-shadow 0.2s;
-    border: 1px solid #e9ecef;
-}
-
-.model-item:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-}
-
-.model-link {
-    color: #333;
-    text-decoration: none;
-    display: block;
-    padding: 1.5rem;
-}
-
-.model-header {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-    margin-bottom: 1rem;
-    flex-wrap: wrap;
-}
-
-.model-header h2 {
-    margin: 0;
-    font-size: 1.4rem;
-    color: #007bff;
-}
-
-.model-id {
-    font-family: monospace;
-    background-color: #e9ecef;
-    padding: 0.25rem 0.5rem;
-    border-radius: 4px;
-    font-size: 0.9rem;
-    color: #495057;
-}
-
-.model-info {
-    color: #666;
-}
-
-.model-info .description {
-    margin: 0 0 1rem 0;
-    line-height: 1.5;
-}
-
-.providers-section {
-    margin-top: 1rem;
-    padding-top: 1rem;
-    border-top: 1px solid #e9ecef;
-}
-
-.providers-section h3 {
-    margin: 0 0 0.5rem 0;
-    font-size: 1rem;
-    color: #495057;
-}
-
-.providers-list {
-    list-style: none;
-    padding: 0;
-    margin: 0;
-}
-
-.providers-list li {
-    display: block;
-    padding: 0.5rem;
-    margin: 0.25rem 0;
-    background-color: #e9ecef;
-    border-radius: 4px;
-    color: #495057;
-    font-size: 0.9rem;
-}
-
-.providers-list li:first-child {
-    margin-top: 0;
-}
-
-.providers-list li:last-child {
-    margin-bottom: 0;
-}
-</style>
+document.addEventListener('DOMContentLoaded', function() {
+    const searchInput = document.getElementById('searchInput');
+    const modelItems = document.querySelectorAll('.model-item');
+    
+    searchInput.addEventListener('input', function(e) {
+        const searchTerm = e.target.value.toLowerCase().trim();
+        
+        modelItems.forEach(item => {
+            const modelName = item.dataset.name;
+            const providers = item.dataset.providers;
+            
+            if (modelName.includes(searchTerm) || providers.includes(searchTerm)) {
+                item.classList.remove('hidden');
+            } else {
+                item.classList.add('hidden');
+            }
+        });
+    });
+    
+    var availableModels = parseInt('{{ available_models or 0 }}');
+    var totalModels = parseInt('{{ total_models or 0 }}');
+    
+    if (totalModels > 0 && availableModels < totalModels) {
+        setTimeout(function() {
+            window.location.reload();
+        }, 5000);
+    }
+});
+</script>
 {% endblock %}

@@ -3,185 +3,204 @@
 {% block title %}{{ model.name }}{% endblock %}
 
 {% block content %}
-<div class="model-detail">
-    <h1>{{ model.name }}</h1>
-    <div class="model-metadata">
-        {% if model.model_id %}
-        <span class="metadata-item">Model ID: {{ model.model_id }}</span>
-        {% endif %}
-    </div>
-
-    {% if model.description %}
-    <div class="model-description">
-        <h2>Description</h2>
-        <p>{{ model.description }}</p>
-    </div>
-    {% endif %}
-
-    <div class="model-providers">
-        <h2>Providers</h2>
-        {% if model.providers %}
-        <div class="providers-list">
-            {% for provider in model.providers %}
-            <div class="provider-item">
-                <div class="provider-header">
-                    <h3>{{ provider|title }}</h3>
-                </div>
-                {% if model.provider_details and provider in model.provider_details %}
-                <div class="provider-stats">
-                    <ul class="stats-list">
-                        {% if model.provider_details[provider].context %}
-                        <li>
-                            <span class="stat-label">Context Length:</span>
-                            <span class="stat-value">{{ model.provider_details[provider].context }}</span>
-                        </li>
-                        {% endif %}
-                        {% if model.provider_details[provider].max_output %}
-                        <li>
-                            <span class="stat-label">Max Output:</span>
-                            <span class="stat-value">{{ model.provider_details[provider].max_output }}</span>
-                        </li>
-                        {% endif %}
-                        {% if model.provider_details[provider].input_price %}
-                        <li>
-                            <span class="stat-label">Input Price:</span>
-                            <span class="stat-value">{{ model.provider_details[provider].input_price }}</span>
-                        </li>
-                        {% endif %}
-                        {% if model.provider_details[provider].output_price %}
-                        <li>
-                            <span class="stat-label">Output Price:</span>
-                            <span class="stat-value">{{ model.provider_details[provider].output_price }}</span>
-                        </li>
-                        {% endif %}
-                    </ul>
-                </div>
-                {% endif %}
+<div class="container">
+    <div class="model-detail">
+        <h1>{{ model.name }}</h1>
+        
+        <div class="model-info">
+            <div class="info-row">
+                <span class="info-label">Model ID:</span>
+                <code class="info-value">{{ model.model_id }}</code>
             </div>
-            {% endfor %}
+            {% if model.description %}
+            <div class="info-row">
+                <span class="info-label">Description:</span>
+                <span class="info-value description">{{ model.description }}</span>
+            </div>
+            {% endif %}
         </div>
-        {% else %}
-        <p>No provider information available</p>
-        {% endif %}
-    </div>
 
-    <div class="back-link">
-        <a href="/models">← Back to Models List</a>
+        {% if model.providers %}
+        <div class="provider-comparison">
+            <h2>Provider Comparison</h2>
+            <div class="table-responsive">
+                <table class="comparison-table">
+                    <thead>
+                        <tr>
+                            <th>Provider</th>
+                            <th>Context Length</th>
+                            <th>Max Output</th>
+                            <th>Input Price</th>
+                            <th>Output Price</th>
+                            <th>Link</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for provider in model.providers %}
+                        <tr>
+                            <td class="provider-name">{{ provider|title }}</td>
+                            {% if model.provider_details and provider in model.provider_details %}
+                                <td>{{ model.provider_details[provider].context }}</td>
+                                <td>{{ model.provider_details[provider].max_output }}</td>
+                                <td>{{ model.provider_details[provider].input_price }}</td>
+                                <td>{{ model.provider_details[provider].output_price }}</td>
+                                <td>
+                                    <a href="{{ model.provider_details[provider].url }}" target="_blank" class="provider-link">
+                                        Visit Provider
+                                        <span class="external-link-icon">↗</span>
+                                    </a>
+                                </td>
+                            {% else %}
+                                <td colspan="5" class="no-data">No details available</td>
+                            {% endif %}
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% endif %}
     </div>
 </div>
 
 <style>
 .model-detail {
-    max-width: 800px;
-    margin: 0 auto;
-    padding: 2rem;
-}
-
-.model-metadata {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 1rem;
-    margin: 1rem 0 2rem;
-}
-
-.metadata-item {
-    background-color: #e9ecef;
-    padding: 0.5rem 1rem;
-    border-radius: 4px;
-    font-family: monospace;
-    font-size: 0.9rem;
-    color: #495057;
-}
-
-.model-description {
-    background-color: #f8f9fa;
-    padding: 1.5rem;
-    border-radius: 8px;
-    margin: 2rem 0;
-}
-
-.model-description h2 {
-    margin-top: 0;
-    color: #333;
-}
-
-.model-providers {
-    margin: 2rem 0;
-}
-
-.providers-list {
-    display: flex;
-    flex-direction: column;
-    gap: 1.5rem;
-    margin-top: 1rem;
-}
-
-.provider-item {
-    background-color: #f8f9fa;
-    border-radius: 8px;
-    overflow: hidden;
-    border: 1px solid #e9ecef;
-}
-
-.provider-header {
-    background-color: #007bff;
-    color: white;
-    padding: 1rem 1.5rem;
-}
-
-.provider-header h3 {
-    margin: 0;
-    font-size: 1.2rem;
-}
-
-.provider-stats {
-    padding: 1.5rem;
-}
-
-.stats-list {
-    list-style: none;
-    padding: 0;
-    margin: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
-}
-
-.stats-list li {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 0.75rem;
     background-color: white;
-    border-radius: 4px;
-    border: 1px solid #e9ecef;
+    border-radius: 8px;
+    padding: 2rem;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
 }
 
-.stat-label {
+.model-info {
+    margin-bottom: 2rem;
+}
+
+.info-row {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.info-label {
     color: #495057;
     font-weight: 500;
+    min-width: 100px;
 }
 
-.stat-value {
+.info-value {
+    color: #212529;
+}
+
+.info-value.description {
+    flex: 1;
+    line-height: 1.5;
+}
+
+code.info-value {
     font-family: monospace;
-    color: #007bff;
-    font-weight: 600;
+    background-color: #e9ecef;
+    padding: 0.2rem 0.4rem;
+    border-radius: 3px;
 }
 
-.back-link {
+.provider-comparison {
     margin-top: 2rem;
 }
 
-.back-link a {
-    color: #007bff;
-    text-decoration: none;
-    display: inline-flex;
-    align-items: center;
-    font-weight: 500;
+.provider-comparison h2 {
+    margin-bottom: 1rem;
+    color: #212529;
 }
 
-.back-link a:hover {
-    text-decoration: underline;
+.table-responsive {
+    overflow-x: auto;
+    margin: 0 -1rem;
+    padding: 0 1rem;
+}
+
+.comparison-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 1rem;
+    background-color: white;
+    border: 1px solid #e9ecef;
+}
+
+.comparison-table th,
+.comparison-table td {
+    padding: 1rem;
+    text-align: left;
+    border-bottom: 1px solid #e9ecef;
+    white-space: nowrap;
+}
+
+.comparison-table th {
+    background-color: #f8f9fa;
+    font-weight: 500;
+    color: #495057;
+}
+
+.comparison-table tr:last-child td {
+    border-bottom: none;
+}
+
+.provider-name {
+    font-weight: 500;
+    color: #007bff;
+}
+
+.no-data {
+    color: #6c757d;
+    font-style: italic;
+    text-align: center;
+}
+
+.provider-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    color: #007bff;
+    text-decoration: none;
+    font-weight: 500;
+    transition: color 0.2s;
+}
+
+.provider-link:hover {
+    color: #0056b3;
+}
+
+.external-link-icon {
+    font-size: 0.9em;
+    line-height: 1;
+}
+
+@media (max-width: 768px) {
+    .model-detail {
+        padding: 1rem;
+    }
+    
+    .info-row {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+    
+    .info-label {
+        min-width: auto;
+    }
+    
+    .comparison-table {
+        font-size: 0.9rem;
+    }
+    
+    .comparison-table th,
+    .comparison-table td {
+        padding: 0.75rem;
+    }
+    
+    .table-responsive {
+        margin: 0 -1rem;
+        padding: 0 1rem;
+    }
 }
 </style>
 {% endblock %}

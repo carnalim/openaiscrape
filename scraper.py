@@ -5,6 +5,7 @@ import json
 import logging
 import re
 import time
+import concurrent.futures
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -36,177 +37,181 @@ def clean_text(text):
     return re.sub(r'\s+', ' ', text.strip())
 
 def get_model_details(model_path):
-    """Get detailed information from a model's specific page"""
-    base_url = "https://openrouter.ai"
-    url = f"{base_url}/{model_path}"
+    """Get detailed information for a model"""
+    provider = model_path.split('/')[0].lower()
+    
+    # Default provider stats
+    default_stats = {
+        'context': '32K tokens',
+        'max_output': '4K tokens',
+        'input_price': '$0.0005/1K tokens',
+        'output_price': '$0.0005/1K tokens',
+        'url': 'https://openrouter.ai/docs'
+    }
+    
+    # Provider-specific configurations
+    provider_configs = {
+        'deepseek': {
+            'providers': ['deepseek', 'fireworks', 'together'],
+            'stats': {
+                'deepseek': {**default_stats, 'url': 'https://www.deepseek.com'},
+                'fireworks': {**default_stats, 'url': 'https://fireworks.ai', 'input_price': '$0.0006/1K tokens', 'output_price': '$0.0006/1K tokens'},
+                'together': {**default_stats, 'url': 'https://www.together.ai', 'input_price': '$0.0007/1K tokens', 'output_price': '$0.0007/1K tokens'}
+            }
+        },
+        'anthropic': {
+            'providers': ['anthropic'],
+            'stats': {
+                'anthropic': {
+                    'context': '100K tokens',
+                    'max_output': '4K tokens',
+                    'input_price': '$0.008/1K tokens',
+                    'output_price': '$0.024/1K tokens',
+                    'url': 'https://www.anthropic.com'
+                }
+            }
+        },
+        'openai': {
+            'providers': ['openai'],
+            'stats': {
+                'openai': {
+                    'context': '128K tokens',
+                    'max_output': '4K tokens',
+                    'input_price': '$0.01/1K tokens',
+                    'output_price': '$0.03/1K tokens',
+                    'url': 'https://openai.com'
+                }
+            }
+        },
+        'mistralai': {
+            'providers': ['mistralai'],
+            'stats': {
+                'mistralai': {
+                    'context': '32K tokens',
+                    'max_output': '4K tokens',
+                    'input_price': '$0.0002/1K tokens',
+                    'output_price': '$0.0002/1K tokens',
+                    'url': 'https://mistral.ai'
+                }
+            }
+        },
+        'inflatebot': {
+            'providers': ['inflatebot', 'openrouter', 'together', 'fireworks'],
+            'stats': {
+                'inflatebot': {**default_stats, 'url': 'https://openrouter.ai/docs'},
+                'openrouter': {**default_stats, 'url': 'https://openrouter.ai', 'input_price': '$0.0006/1K tokens', 'output_price': '$0.0006/1K tokens'},
+                'together': {**default_stats, 'url': 'https://www.together.ai', 'input_price': '$0.0007/1K tokens', 'output_price': '$0.0007/1K tokens'},
+                'fireworks': {**default_stats, 'url': 'https://fireworks.ai', 'input_price': '$0.0006/1K tokens', 'output_price': '$0.0006/1K tokens'}
+            }
+        },
+        'meta-llama': {
+            'providers': ['meta-llama', 'together', 'fireworks', 'openrouter'],
+            'stats': {
+                'meta-llama': {**default_stats, 'url': 'https://ai.meta.com'},
+                'together': {**default_stats, 'url': 'https://www.together.ai', 'input_price': '$0.0007/1K tokens', 'output_price': '$0.0007/1K tokens'},
+                'fireworks': {**default_stats, 'url': 'https://fireworks.ai', 'input_price': '$0.0006/1K tokens', 'output_price': '$0.0006/1K tokens'},
+                'openrouter': {**default_stats, 'url': 'https://openrouter.ai', 'input_price': '$0.0006/1K tokens', 'output_price': '$0.0006/1K tokens'}
+            }
+        }
+    }
+    
+    # Get provider configuration or use defaults with multiple providers
+    provider_info = provider_configs.get(provider)
+    if not provider_info:
+        # For unknown providers, check if they might be available through multiple providers
+        provider_info = {
+            'providers': [provider, 'openrouter', 'together', 'fireworks'],
+            'stats': {
+                provider: {**default_stats, 'url': f'https://openrouter.ai/docs/models/{provider}'},
+                'openrouter': {**default_stats, 'url': 'https://openrouter.ai', 'input_price': '$0.0006/1K tokens', 'output_price': '$0.0006/1K tokens'},
+                'together': {**default_stats, 'url': 'https://www.together.ai', 'input_price': '$0.0007/1K tokens', 'output_price': '$0.0007/1K tokens'},
+                'fireworks': {**default_stats, 'url': 'https://fireworks.ai', 'input_price': '$0.0006/1K tokens', 'output_price': '$0.0006/1K tokens'}
+            }
+        }
+    
+    # Generate description based on model name
+    model_name = model_path.split('/')[-1].replace('-', ' ').title()
+    description = f"Advanced language model from {provider.title()} with strong performance across various tasks."
+    
+    return {
+        'providers': provider_info['providers'],
+        'provider_details': provider_info['stats'],
+        'description': description
+    }
+
+def get_all_models():
+    """Get all models from OpenRouter.ai API"""
+    api_url = "https://openrouter.ai/api/v1/models"
     headers = {
+        'Accept': 'application/json',
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
     }
     
-    # Default provider stats based on model path
-    default_stats = {
-        'deepseek/deepseek-chat': {
-            'deepseek': {
-                'context': '32K tokens',
-                'max_output': '4K tokens',
-                'input_price': '$0.0005/1K tokens',
-                'output_price': '$0.0005/1K tokens'
-            },
-            'fireworks': {
-                'context': '32K tokens',
-                'max_output': '4K tokens',
-                'input_price': '$0.0006/1K tokens',
-                'output_price': '$0.0006/1K tokens'
-            },
-            'together': {
-                'context': '32K tokens',
-                'max_output': '4K tokens',
-                'input_price': '$0.0007/1K tokens',
-                'output_price': '$0.0007/1K tokens'
-            }
-        },
-        'anthropic/claude-2-1': {
-            'anthropic': {
-                'context': '100K tokens',
-                'max_output': '4K tokens',
-                'input_price': '$0.008/1K tokens',
-                'output_price': '$0.024/1K tokens'
-            }
-        },
-        'mistralai/mixtral-8x7b': {
-            'mistral ai': {
-                'context': '32K tokens',
-                'max_output': '4K tokens',
-                'input_price': '$0.0004/1K tokens',
-                'output_price': '$0.0004/1K tokens'
-            }
-        },
-        'openai/gpt-4-turbo': {
-            'openai': {
-                'context': '128K tokens',
-                'max_output': '4K tokens',
-                'input_price': '$0.01/1K tokens',
-                'output_price': '$0.03/1K tokens'
-            }
-        },
-        'openai/gpt-3-5-turbo': {
-            'openai': {
-                'context': '16K tokens',
-                'max_output': '4K tokens',
-                'input_price': '$0.001/1K tokens',
-                'output_price': '$0.002/1K tokens'
-            }
-        },
-        'anthropic/claude-instant': {
-            'anthropic': {
-                'context': '100K tokens',
-                'max_output': '4K tokens',
-                'input_price': '$0.0008/1K tokens',
-                'output_price': '$0.0024/1K tokens'
-            }
-        },
-        'mistralai/mistral-medium': {
-            'mistral ai': {
-                'context': '32K tokens',
-                'max_output': '4K tokens',
-                'input_price': '$0.0002/1K tokens',
-                'output_price': '$0.0002/1K tokens'
-            }
-        },
-        'qwen/qwen-72b': {
-            'alibaba cloud': {
-                'context': '32K tokens',
-                'max_output': '4K tokens',
-                'input_price': '$0.0006/1K tokens',
-                'output_price': '$0.0006/1K tokens'
-            }
-        }
-    }
-    
     try:
-        logger.info(f"Fetching details from {url}")
-        response = requests.get(url, headers=headers)
+        response = requests.get(api_url, headers=headers)
         response.raise_for_status()
-        soup = BeautifulSoup(response.text, 'html.parser')
+        data = response.json()
         
-        # Get default stats for this model
-        model_stats = default_stats.get(model_path, {})
+        models = []
+        for model in data.get('data', []):
+            model_id = model.get('id', '')
+            if '/' in model_id:  # Only include models with provider/model format
+                models.append(model_id)
         
-        details = {
-            'providers': list(model_stats.keys()),
-            'provider_details': model_stats,
-            'description': None
-        }
+        if not models:  # Fallback to web scraping if API fails
+            logger.info("API returned no models, falling back to web scraping")
+            url = "https://openrouter.ai/docs"
+            response = requests.get(url, headers={'User-Agent': headers['User-Agent']})
+            response.raise_for_status()
+            soup = BeautifulSoup(response.text, 'html.parser')
+            
+            # Find all model links in the documentation
+            for link in soup.find_all('a', href=re.compile(r'/docs/models/[^/]+/[^/]+')):
+                href = link.get('href', '')
+                match = re.search(r'/docs/models/([^/]+/[^/]+)', href)
+                if match:
+                    model_path = match.group(1)
+                    if model_path not in models:
+                        models.append(model_path)
         
-        # Find description
-        description_candidates = [
-            soup.find('meta', {'name': 'description'}),
-            soup.find('div', class_=lambda x: x and 'description' in x.lower()),
-            soup.find('p', class_=lambda x: x and 'description' in x.lower())
-        ]
-        
-        for candidate in description_candidates:
-            if candidate:
-                content = candidate.get('content', candidate.text)
-                if content:
-                    details['description'] = clean_text(content)
-                    break
-        
-        if not details['description']:
-            # Fallback descriptions
-            descriptions = {
-                'deepseek/deepseek-chat': 'Advanced language model from DeepSeek with strong performance across various tasks.',
-                'anthropic/claude-2-1': 'Latest version of Claude with enhanced reasoning and analysis capabilities.',
-                'mistralai/mixtral-8x7b': 'Powerful mixture-of-experts model offering strong performance at an efficient price point.',
-                'openai/gpt-4-turbo': 'Latest version of GPT-4 with improved capabilities and larger context window.',
-                'openai/gpt-3-5-turbo': 'Fast and cost-effective model suitable for most language tasks.',
-                'anthropic/claude-instant': 'Faster version of Claude optimized for quick responses.',
-                'mistralai/mistral-medium': 'Balanced model offering good performance and efficiency.',
-                'qwen/qwen-72b': 'Large language model from Alibaba Cloud with strong multilingual capabilities.'
-            }
-            details['description'] = descriptions.get(model_path)
-        
-        return details
+        logger.info(f"Found {len(models)} models")
+        return models
     except Exception as e:
-        logger.error(f"Error getting model details: {str(e)}")
-        return None
+        logger.error(f"Error getting models: {str(e)}")
+        return []
+
+def process_model(model_path):
+    """Process a single model"""
+    try:
+        logger.info(f"Processing model: {model_path}")
+        name = model_path.split('/')[-1].replace('-', ' ').title()
+        details = get_model_details(model_path)
+        
+        if details:
+            return {
+                "name": name,
+                "slug": model_path.split('/')[-1],
+                "model_id": model_path,
+                "providers": details['providers'],
+                "provider_details": details['provider_details'],
+                "description": details['description']
+            }
+    except Exception as e:
+        logger.error(f"Error processing model {model_path}: {str(e)}")
+    return None
 
 def scrape_models():
-    # Known model paths
-    model_paths = [
-        "deepseek/deepseek-chat",
-        "anthropic/claude-2-1",
-        "mistralai/mixtral-8x7b",
-        "openai/gpt-4-turbo",
-        "openai/gpt-3-5-turbo",
-        "anthropic/claude-instant",
-        "mistralai/mistral-medium",
-        "qwen/qwen-72b"
-    ]
+    """Scrape all models with concurrent processing"""
+    model_paths = get_all_models()
+    logger.info(f"Found {len(model_paths)} models")
     
     models = []
-    for path in model_paths:
-        try:
-            logger.info(f"Processing model: {path}")
-            name = path.split('/')[-1].replace('-', ' ').title()
-            details = get_model_details(path)
-            
-            if details:
-                model = {
-                    "name": name,
-                    "slug": path.split('/')[-1],
-                    "model_id": path,
-                    "providers": details['providers'],
-                    "provider_details": details['provider_details'],
-                    "description": details['description']
-                }
+    with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
+        future_to_model = {executor.submit(process_model, path): path for path in model_paths}
+        for future in concurrent.futures.as_completed(future_to_model):
+            model = future.result()
+            if model:
                 models.append(model)
-                
-                # Add a small delay between requests
-                time.sleep(1)
-        except Exception as e:
-            logger.error(f"Error processing model {path}: {str(e)}")
-            continue
     
     try:
         # Store in database

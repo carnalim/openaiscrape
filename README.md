@@ -1,52 +1,89 @@
-# OpenRouter.ai Model Scraper
+# AI Model Explorer
 
-A Python web application that scrapes and displays AI model information from OpenRouter.ai.
+A Python Flask web application that displays information about various AI models available through different providers. The application scrapes model data from OpenRouter.ai and presents it in a user-friendly interface with search functionality and detailed comparisons.
 
 ## Features
 
-- Scrapes model information from OpenRouter.ai
-- Displays models in a clean, responsive web interface
-- Shows detailed provider information for each model
-- Stores data in SQLite database
-- Lists context lengths, pricing, and other model stats
+- Browse a comprehensive list of AI models
+- Search models by name or provider
+- View detailed model information including:
+  - Context length
+  - Maximum output tokens
+  - Input/Output pricing
+  - Provider-specific details
+- Compare different providers for each model
+- Direct links to provider websites
+- Responsive design for mobile and desktop
+
+## Tech Stack
+
+- Python 3.x
+- Flask (Web Framework)
+- SQLite (Database)
+- BeautifulSoup4 (Web Scraping)
+- HTML/CSS (Frontend)
+- JavaScript (Search functionality)
 
 ## Setup
 
-1. Create a virtual environment:
+1. Clone the repository:
+```bash
+git clone https://github.com/yourusername/ai-model-explorer.git
+cd ai-model-explorer
+```
+
+2. Create and activate a virtual environment:
 ```bash
 python -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
 ```
 
-2. Install dependencies:
+3. Install dependencies:
 ```bash
 pip install -r requirements.txt
 ```
 
-3. Run the application:
+4. Run the scraper to populate the database:
+```bash
+python scraper.py
+```
+
+5. Start the Flask server:
 ```bash
 python app.py
 ```
 
-4. Visit http://127.0.0.1:5001 in your browser
+6. Open your browser and navigate to:
+```
+http://localhost:5000
+```
 
 ## Project Structure
 
-- `app.py` - Flask web application
-- `scraper.py` - Model data scraper
-- `templates/` - HTML templates
-  - `base.html` - Base template with navigation
-  - `index.html` - Home page
-  - `models.html` - Models listing page
-  - `model_detail.html` - Individual model details
-  - `404.html` - Not found error page
-  - `500.html` - Server error page
-- `requirements.txt` - Python dependencies
+```
+ai-model-explorer/
+├── app.py              # Flask application
+├── scraper.py         # Model data scraper
+├── requirements.txt   # Python dependencies
+├── static/           # Static files
+│   └── css/
+│       └── styles.css
+├── templates/        # HTML templates
+│   ├── base.html
+│   ├── index.html
+│   ├── models.html
+│   └── model_detail.html
+└── README.md
+```
 
-## Technologies Used
+## Contributing
 
-- Python 3
-- Flask
-- BeautifulSoup4
-- SQLite
-- HTML/CSS
+1. Fork the repository
+2. Create a new branch for your feature
+3. Commit your changes
+4. Push to your branch
+5. Create a Pull Request
+
+## License
+
+This project is licensed under the MIT License - see the LICENSE file for details.

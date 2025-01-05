@@ -3,7 +3,91 @@
 {% block title %}Home{% endblock %}
 
 {% block content %}
-<h1>Welcome to AI Models Directory</h1>
-<p>This website provides a comprehensive list of AI models available on OpenRouter.ai. Click on the Models menu item to view the current list of available models.</p>
-<p>Our database is regularly updated to ensure you have access to the latest information about available AI models.</p>
+<div class="container">
+    <h1>AI Model Explorer</h1>
+    
+    <div class="welcome-section">
+        <p>Welcome to the AI Model Explorer. This platform provides detailed information about various AI models available through different providers.</p>
+        
+        <div class="features">
+            <div class="feature-card">
+                <h3>Browse Models</h3>
+                <p>Explore a comprehensive list of AI models from various providers including OpenAI, Anthropic, Google, and more.</p>
+                <a href="/models" class="feature-link">View Models →</a>
+            </div>
+            
+            <div class="feature-card">
+                <h3>Search & Filter</h3>
+                <p>Easily search through models by name or provider to find exactly what you're looking for.</p>
+                <a href="/models" class="feature-link">Try Search →</a>
+            </div>
+            
+            <div class="feature-card">
+                <h3>Detailed Information</h3>
+                <p>Get detailed information about each model including context length, pricing, and provider-specific details.</p>
+                <a href="/models" class="feature-link">Learn More →</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.welcome-section {
+    margin-top: 2rem;
+}
+
+.features {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 2rem;
+    margin-top: 3rem;
+}
+
+.feature-card {
+    background-color: white;
+    padding: 2rem;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.feature-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.feature-card h3 {
+    color: #007bff;
+    margin: 0 0 1rem 0;
+}
+
+.feature-card p {
+    color: #6c757d;
+    margin: 0 0 1.5rem 0;
+    line-height: 1.6;
+}
+
+.feature-link {
+    display: inline-block;
+    color: #007bff;
+    text-decoration: none;
+    font-weight: 500;
+    transition: color 0.2s;
+}
+
+.feature-link:hover {
+    color: #0056b3;
+}
+
+@media (max-width: 768px) {
+    .features {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+    
+    .feature-card {
+        padding: 1.5rem;
+    }
+}
+</style>
 {% endblock %}
