@@ -1,9 +1,11 @@
-from flask import Flask, render_template, abort, url_for, redirect, request
+from flask import Flask, render_template, abort, url_for, redirect, request, send_file
 import logging
 from scraper import init_db, scrape_models, get_models, get_model_by_slug
 import threading
 import sqlite3
 import os
+import csv
+import io
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -11,26 +13,81 @@ logger = logging.getLogger(__name__)
 
 app = Flask(__name__, static_folder='static', static_url_path='/static')
 
-# Global variable to track total models being scraped
+# Global variables to track scraping status
+is_scraping = False
+should_stop_scraping = False
 total_models_to_scrape = 0
 
-def initialize_data():
-    """Initialize database and scrape models"""
+def initialize_database():
+    """Initialize database only"""
     try:
         logger.info("Initializing database...")
-        init_db()
-        logger.info("Scraping models...")
-        models = scrape_models()
-        logger.info(f"Successfully scraped {len(models)} models")
+        init_db()  # Creates table if it doesn't exist
         return True
     except Exception as e:
-        logger.error(f"Error initializing data: {str(e)}")
+        logger.error(f"Error initializing database: {str(e)}")
         return False
+def start_scraping():
+    """Start scraping models in a background thread"""
+    global is_scraping, should_stop_scraping, total_models_to_scrape
+    
+    def scrape_worker():
+        global is_scraping, should_stop_scraping
+        try:
+            is_scraping = True
+            should_stop_scraping = False
+            logger.info("Scraping models...")
+            models = scrape_models(lambda: should_stop_scraping)  # Pass stop check callback
+            if should_stop_scraping:
+                logger.info("Scraping was stopped by user")
+            else:
+                logger.info(f"Successfully scraped {len(models)} models")
+        except Exception as e:
+            logger.error(f"Error scraping models: {str(e)}")
+        finally:
+            is_scraping = False
+            should_stop_scraping = False
+    
+    if not is_scraping:
+        thread = threading.Thread(target=scrape_worker)
+        thread.daemon = True
+        thread.start()
+        return True
+    return False
 
-# Start data initialization in a background thread
-init_thread = threading.Thread(target=initialize_data)
-init_thread.daemon = True
-init_thread.start()
+@app.route('/admin/stop', methods=['POST'])
+def stop_scraping():
+    """Stop the scraping process"""
+    global should_stop_scraping
+    try:
+        logger.info("Stopping scraping process...")
+        should_stop_scraping = True
+        return redirect('/admin')
+    except Exception as e:
+        logger.error(f"Error stopping scrape: {str(e)}")
+        logger.exception(e)
+        abort(500)
+
+@app.route('/admin/delete', methods=['POST'])
+def delete_models():
+    """Delete all models from the database"""
+    try:
+        logger.info("Deleting all models from database...")
+        conn = sqlite3.connect('models.db')
+        c = conn.cursor()
+        c.execute('DELETE FROM models')
+        conn.commit()
+        conn.close()
+        logger.info("Successfully deleted all models")
+        return redirect('/admin')
+    except Exception as e:
+        logger.error(f"Error deleting models: {str(e)}")
+        logger.exception(e)
+        abort(500)
+    return False
+
+# Initialize database on startup (without scraping)
+initialize_database()
 
 @app.route('/')
 def home():
@@ -40,7 +97,8 @@ def home():
 @app.route('/models')
 def models():
     try:
-        # Get page number from query parameters, default to 1
+        # Get search query and page number from query parameters
+        search_query = request.args.get('q', '').lower()
         page = int(request.args.get('page', 1))
         per_page = 20
         
@@ -59,15 +117,30 @@ def models():
             if model.get('providers') and model.get('provider_details') and model.get('description')
         ]
         
-        # Sort models, prioritizing Deepseek V3 models
+        # Filter models if search query exists
+        if search_query:
+            filtered_models = []
+            for model in available_models:
+                name = model['name'].lower()
+                model_id = model['model_id'].lower()
+                providers = [p.lower() for p in model['providers']]
+                if (search_query in name or
+                    search_query in model_id or
+                    any(search_query in p for p in providers)):
+                    filtered_models.append(model)
+            available_models = filtered_models
+        
+        # Sort models, prioritizing newer models
         def sort_key(model):
             name = model['name'].lower()
             model_id = model['model_id'].lower()
-            if 'deepseek' in name and 'v3' in name:
-                return ('0', name)  # '0' prefix to ensure Deepseek V3 comes first
-            elif 'codestral' in model_id and 'mamba' in model_id:
-                return ('1', name)  # '1' prefix to ensure Codestral Mamba comes second
-            return ('2', name)
+            if 'claude-3' in model_id:
+                return ('0', name)  # Claude-3 models first
+            elif 'gpt-4' in model_id:
+                return ('1', name)  # GPT-4 models second
+            elif 'gemini' in model_id:
+                return ('2', name)  # Gemini models third
+            return ('3', name)  # All other models
         
         available_models.sort(key=sort_key)
         
@@ -100,8 +173,6 @@ def models():
                 total_models_to_scrape = 217  # Default if database error
         
         logger.info(f"Retrieved {len(available_models)} available models out of {total_models_to_scrape} total models")
-        for model in available_models:
-            logger.info(f"Model: {model['name']}, Providers: {model['providers']}")
         
         return render_template(
             'models.html',
@@ -111,12 +182,13 @@ def models():
             breadcrumbs=breadcrumbs,
             current_page=page,
             total_pages=total_pages,
-            per_page=per_page
+            per_page=per_page,
+            is_scraping=is_scraping  # Pass scraping status to template
         )
     except Exception as e:
         logger.error(f"Error retrieving models: {str(e)}")
         logger.exception(e)  # This will log the full stack trace
-        return render_template('models.html', models=[], total_models=217, available_models=0, breadcrumbs=breadcrumbs)
+        return render_template('models.html', models=[], total_models=217, available_models=0, breadcrumbs=breadcrumbs, is_scraping=is_scraping)
 
 @app.route('/model/<slug>')
 def model_detail(slug):
@@ -159,22 +231,73 @@ def admin():
             'admin.html',
             total_models=total_models_to_scrape,
             available_models=len(available_models),
-            breadcrumbs=breadcrumbs
+            breadcrumbs=breadcrumbs,
+            is_scraping=is_scraping  # Pass scraping status to template
         )
     except Exception as e:
         logger.error(f"Error accessing admin page: {str(e)}")
         logger.exception(e)
         abort(500)
 
+@app.route('/admin/export')
+def export_models():
+    try:
+        # Get all models
+        models = get_models()
+        
+        # Create a string buffer to write CSV data
+        output = io.StringIO()
+        writer = csv.writer(output)
+        
+        # Write header
+        writer.writerow(['Name', 'Model ID', 'Provider', 'Context Length', 'Max Output',
+                        'Input Price', 'Output Price', 'Latency', 'Throughput', 'URL'])
+        
+        # Write data
+        for model in models:
+            for provider in model.get('providers', []):
+                if provider in model.get('provider_details', {}):
+                    details = model['provider_details'][provider]
+                    writer.writerow([
+                        model['name'],
+                        model['model_id'],
+                        provider,
+                        details.get('context', ''),
+                        details.get('max_output', ''),
+                        details.get('input_price', ''),
+                        details.get('output_price', ''),
+                        details.get('latency', ''),
+                        details.get('throughput', ''),
+                        details.get('url', '')
+                    ])
+        
+        # Move cursor to beginning of file
+        output.seek(0)
+        
+        # Return the CSV file
+        return send_file(
+            io.BytesIO(output.getvalue().encode('utf-8')),
+            mimetype='text/csv',
+            as_attachment=True,
+            download_name='models.csv'
+        )
+    except Exception as e:
+        logger.error(f"Error exporting models: {str(e)}")
+        logger.exception(e)
+        abort(500)
+
 @app.route('/admin/refresh', methods=['POST'])
 def refresh_models():
     try:
-        # Reset the database and start scraping again
-        logger.info("Refreshing models database...")
-        initialize_data()
+        # Start scraping in background
+        logger.info("Starting model refresh...")
+        if start_scraping():
+            logger.info("Model refresh started successfully")
+        else:
+            logger.warning("Scraping already in progress")
         return redirect('/admin')
     except Exception as e:
-        logger.error(f"Error refreshing models: {str(e)}")
+        logger.error(f"Error starting model refresh: {str(e)}")
         logger.exception(e)
         abort(500)
 

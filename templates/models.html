@@ -1,161 +1,124 @@
 {% extends "base.html" %}
 
-{% block title %}Models{% endblock %}
-
 {% block content %}
-<div class="models-container">
-    <h1>Available AI Models</h1>
-    
-    <div class="search-container">
-        <input type="text" id="searchInput" placeholder="Search models by name or provider..." class="search-input">
-    </div>
-    
-    <div class="model-list">
-        {% for model in models %}
-        <div class="model-item" data-name="{{ model.name.lower() }}" data-providers="{{ model.providers|join(' ')|lower }}" data-model-id="{{ model.model_id.lower() }}">
-            <div class="model-header">
-                <div class="model-title" onclick="toggleModel('{{ model.slug }}')">
-                    <div class="model-name-container">
-                        <div class="name-with-link">
-                            <span class="model-name">{{ model.name }}</span>
-                            <a href="https://openrouter.ai/{{ model.model_id }}" target="_blank" class="link-icon" onclick="event.stopPropagation()" title="View on OpenRouter">
-                                <svg viewBox="0 0 24 24" width="16" height="16">
-                                    <path d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                                </svg>
-                            </a>
-                        </div>
-                        <a href="/model/{{ model.slug }}" class="view-details-btn" onclick="event.stopPropagation()">View Details</a>
+<div class="container mx-auto px-4 py-8">
+    <div class="flex flex-col gap-4">
+        <!-- Status Bar -->
+        {% if is_scraping %}
+        <div class="bg-blue-100 border-l-4 border-blue-500 p-4 mb-4">
+            <div class="flex items-center">
+                <div class="flex-shrink-0">
+                    <svg class="animate-spin h-5 w-5 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                </div>
+                <div class="ml-3">
+                    <p class="text-sm text-blue-700">
+                        Loading models... {{ available_models }} of {{ total_models }} models available
+                    </p>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Search Bar -->
+        <div class="search-container">
+            <form method="get" action="{{ url_for('models') }}" class="search-form">
+                <input type="text" name="q" value="{{ request.args.get('q', '') }}"
+                       class="search-input" placeholder="Search models by name, ID, or provider...">
+                <button type="submit" class="search-button">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="11" cy="11" r="8"></circle>
+                        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                    </svg>
+                    Search
+                </button>
+            </form>
+        </div>
+
+        <!-- Models Grid -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {% for model in models %}
+            <div class="model-card">
+                <div class="model-header">
+                    <div class="model-title">
+                        <h3 class="model-name">{{ model.name }}</h3>
+                        <a href="{{ url_for('model_detail', slug=model.slug) }}" class="view-details-btn">
+                            View Details →
+                        </a>
                     </div>
+                    <p class="model-description">{{ model.description[:150] }}{% if model.description|length > 150 %}...{% endif %}</p>
                     <div class="provider-tags">
                         {% for provider in model.providers %}
-                        <span class="provider-tag">{{ provider|title }}</span>
+                        {% if provider in model.provider_details %}
+                        <span class="provider-tag">{{ provider }}</span>
+                        {% endif %}
                         {% endfor %}
                     </div>
-                    <span class="expand-icon" id="icon-{{ model.slug }}">▼</span>
                 </div>
             </div>
-            
-            <div class="model-details" id="{{ model.slug }}" style="display: none;">
-                <div class="details-grid">
-                    <div class="model-info">
-                        <div class="info-row">
-                            <span class="info-label">Model ID:</span>
-                            <code class="info-value">{{ model.model_id }}</code>
-                        </div>
-                        {% if model.description %}
-                        <div class="info-row">
-                            <span class="info-label">Description:</span>
-                            <span class="info-value description">{{ model.description }}</span>
-                        </div>
-                        {% endif %}
-                    </div>
+            {% endfor %}
+        </div>
 
-                    {% if model.providers %}
-                    <div class="provider-details">
-                        {% for provider in model.providers %}
-                        {% if model.provider_details and provider in model.provider_details %}
-                        <div class="provider-section">
-                            <div class="provider-header">
-                                <h3>{{ provider|title }} Details</h3>
-                            </div>
-                            <div class="stats-grid">
-                                {% if model.provider_details[provider].context %}
-                                <div class="stat-item">
-                                    <span class="stat-label">Context Length</span>
-                                    <span class="stat-value">{{ model.provider_details[provider].context }}</span>
-                                </div>
-                                {% endif %}
-                                {% if model.provider_details[provider].max_output %}
-                                <div class="stat-item">
-                                    <span class="stat-label">Max Output</span>
-                                    <span class="stat-value">{{ model.provider_details[provider].max_output }}</span>
-                                </div>
-                                {% endif %}
-                                {% if model.provider_details[provider].input_price %}
-                                <div class="stat-item">
-                                    <span class="stat-label">Input Price</span>
-                                    <span class="stat-value">{{ model.provider_details[provider].input_price }}</span>
-                                </div>
-                                {% endif %}
-                                {% if model.provider_details[provider].output_price %}
-                                <div class="stat-item">
-                                    <span class="stat-label">Output Price</span>
-                                    <span class="stat-value">{{ model.provider_details[provider].output_price }}</span>
-                                </div>
-                                {% endif %}
-                            </div>
-                        </div>
-                        {% endif %}
-                        {% endfor %}
-                    </div>
+        <!-- Pagination -->
+        {% if total_pages > 1 %}
+        <div class="flex justify-center mt-8">
+            <nav class="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+                {% if current_page > 1 %}
+                <a href="{{ url_for('models', page=current_page-1, q=request.args.get('q', '')) }}" class="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50">
+                    <span class="sr-only">Previous</span>
+                    <svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                        <path fill-rule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clip-rule="evenodd" />
+                    </svg>
+                </a>
+                {% endif %}
+
+                {# Always show first page #}
+                <a href="{{ url_for('models', page=1, q=request.args.get('q', '')) }}"
+                   class="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium {% if 1 == current_page %}text-blue-600 bg-blue-50{% else %}text-gray-700 hover:bg-gray-50{% endif %}">
+                    1
+                </a>
+
+                {# Show ellipsis if there are many pages before current #}
+                {% if current_page > 4 %}
+                <span class="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm text-gray-700">...</span>
+                {% endif %}
+
+                {# Show pages around current page #}
+                {% for page in range(current_page - 2, current_page + 3) %}
+                    {% if page > 1 and page < total_pages %}
+                    <a href="{{ url_for('models', page=page, q=request.args.get('q', '')) }}"
+                       class="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium {% if page == current_page %}text-blue-600 bg-blue-50{% else %}text-gray-700 hover:bg-gray-50{% endif %}">
+                        {{ page }}
+                    </a>
                     {% endif %}
-                </div>
-            </div>
+                {% endfor %}
+
+                {# Show ellipsis if there are many pages after current #}
+                {% if current_page < total_pages - 3 %}
+                <span class="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm text-gray-700">...</span>
+                {% endif %}
+
+                {# Always show last page #}
+                {% if total_pages > 1 %}
+                <a href="{{ url_for('models', page=total_pages, q=request.args.get('q', '')) }}"
+                   class="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium {% if total_pages == current_page %}text-blue-600 bg-blue-50{% else %}text-gray-700 hover:bg-gray-50{% endif %}">
+                    {{ total_pages }}
+                </a>
+                {% endif %}
+
+                {% if current_page < total_pages %}
+                <a href="{{ url_for('models', page=current_page+1, q=request.args.get('q', '')) }}" class="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50">
+                    <span class="sr-only">Next</span>
+                    <svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                        <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd" />
+                    </svg>
+                </a>
+                {% endif %}
+            </nav>
         </div>
-        {% endfor %}
+        {% endif %}
     </div>
-    
-    {% if total_pages > 1 %}
-    <div class="pagination">
-        <div class="pagination-controls">
-            {% if current_page > 1 %}
-            <a href="{{ url_for('models', page=current_page-1) }}" class="page-btn">Previous</a>
-            {% endif %}
-            
-            <span class="page-info">Page {{ current_page }} of {{ total_pages }}</span>
-            
-            {% if current_page < total_pages %}
-            <a href="{{ url_for('models', page=current_page+1) }}" class="page-btn">Next</a>
-            {% endif %}
-        </div>
-    </div>
-    {% endif %}
 </div>
-
-<script>
-function toggleModel(modelId) {
-    const content = document.getElementById(modelId);
-    const icon = document.getElementById(`icon-${modelId}`);
-    
-    if (content.style.display === 'none') {
-        content.style.display = 'block';
-        icon.classList.add('expanded');
-    } else {
-        content.style.display = 'none';
-        icon.classList.remove('expanded');
-    }
-}
-
-document.addEventListener('DOMContentLoaded', function() {
-    const searchInput = document.getElementById('searchInput');
-    const modelItems = document.querySelectorAll('.model-item');
-    
-    searchInput.addEventListener('input', function(e) {
-        const searchTerm = e.target.value.toLowerCase().trim();
-        
-        modelItems.forEach(item => {
-            const modelName = item.dataset.name;
-            const providers = item.dataset.providers;
-            const modelId = item.dataset.modelId;
-            
-            if (modelName.includes(searchTerm) || providers.includes(searchTerm) || modelId.includes(searchTerm)) {
-                item.classList.remove('hidden');
-            } else {
-                item.classList.add('hidden');
-            }
-        });
-
-        // Hide pagination if searching
-        const pagination = document.querySelector('.pagination');
-        if (pagination) {
-            if (searchTerm) {
-                pagination.style.display = 'none';
-            } else {
-                pagination.style.display = 'flex';
-            }
-        }
-    });
-    
-});
-</script>
 {% endblock %}

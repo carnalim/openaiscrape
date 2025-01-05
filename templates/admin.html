@@ -18,14 +18,43 @@
                 <span class="stat-value">{{ available_models }}</span>
             </div>
         </div>
-        <form action="/admin/refresh" method="post" class="admin-form">
-            <button type="submit" class="refresh-btn">
-                <svg class="refresh-icon" viewBox="0 0 24 24" width="24" height="24">
-                    <path d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6 0 1.01-.25 1.97-.7 2.8l1.46 1.46C19.54 15.03 20 13.57 20 12c0-4.42-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6 0-1.01.25-1.97.7-2.8L5.24 7.74C4.46 8.97 4 10.43 4 12c0 4.42 3.58 8 8 8v3l4-4-4-4v3z" fill="currentColor"/>
-                </svg>
-                Refresh Models Database
-            </button>
-        </form>
+        <div class="admin-actions">
+            {% if is_scraping %}
+            <form action="/admin/stop" method="post" class="admin-form">
+                <button type="submit" class="refresh-btn stop-btn">
+                    <svg class="refresh-icon" viewBox="0 0 24 24" width="24" height="24">
+                        <path d="M6 6h12v12H6z" fill="currentColor"/>
+                    </svg>
+                    Stop Scraping
+                </button>
+            </form>
+            {% else %}
+            <form action="/admin/refresh" method="post" class="admin-form">
+                <button type="submit" class="refresh-btn">
+                    <svg class="refresh-icon" viewBox="0 0 24 24" width="24" height="24">
+                        <path d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6 0 1.01-.25 1.97-.7 2.8l1.46 1.46C19.54 15.03 20 13.57 20 12c0-4.42-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6 0-1.01.25-1.97.7-2.8L5.24 7.74C4.46 8.97 4 10.43 4 12c0 4.42 3.58 8 8 8v3l4-4-4-4v3z" fill="currentColor"/>
+                    </svg>
+                    Refresh Models Database
+                </button>
+            </form>
+            {% endif %}
+            <div class="admin-buttons">
+                <a href="/admin/export" class="export-btn">
+                    <svg class="export-icon" viewBox="0 0 24 24" width="24" height="24">
+                        <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z" fill="currentColor"/>
+                    </svg>
+                    Export to CSV
+                </a>
+                <form action="/admin/delete" method="post" class="admin-form" onsubmit="return confirm('Are you sure you want to delete all models? This cannot be undone.');">
+                    <button type="submit" class="delete-btn">
+                        <svg class="delete-icon" viewBox="0 0 24 24" width="24" height="24">
+                            <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z" fill="currentColor"/>
+                        </svg>
+                        Delete All Models
+                    </button>
+                </form>
+            </div>
+        </div>
     </div>
 </div>
 {% endblock %}

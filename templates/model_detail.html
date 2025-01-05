@@ -42,6 +42,8 @@
                             <th>Max Output</th>
                             <th>Input Price</th>
                             <th>Output Price</th>
+                            <th>Latency</th>
+                            <th>Throughput</th>
                             <th>Link</th>
                         </tr>
                     </thead>
@@ -54,6 +56,8 @@
                                 <td>{{ model.provider_details[provider].max_output }}</td>
                                 <td>{{ model.provider_details[provider].input_price }}</td>
                                 <td>{{ model.provider_details[provider].output_price }}</td>
+                                <td>{{ model.provider_details[provider].latency }}</td>
+                                <td>{{ model.provider_details[provider].throughput }}</td>
                                 <td>
                                     <a href="{{ model.provider_details[provider].url }}" target="_blank" class="provider-link">
                                         Visit Provider
@@ -61,7 +65,7 @@
                                     </a>
                                 </td>
                             {% else %}
-                                <td colspan="5" class="no-data">No details available</td>
+                                <td colspan="7" class="no-data">No details available</td>
                             {% endif %}
                         </tr>
                         {% endfor %}
