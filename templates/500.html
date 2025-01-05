@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+
+{% block title %}Server Error{% endblock %}
+
+{% block content %}
+<div class="error-page">
+    <h1>500 - Server Error</h1>
+    <p>Something went wrong on our end. Please try again later.</p>
+    <div class="back-link">
+        <a href="/">← Back to Home</a>
+    </div>
+</div>
+
+<style>
+.error-page {
+    max-width: 600px;
+    margin: 4rem auto;
+    text-align: center;
+    padding: 2rem;
+}
+
+.back-link {
+    margin-top: 2rem;
+}
+
+.back-link a {
+    color: #007bff;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    font-weight: 500;
+}
+
+.back-link a:hover {
+    text-decoration: underline;
+}
+</style>
+{% endblock %}

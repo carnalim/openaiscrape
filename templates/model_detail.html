@@ -1,0 +1,187 @@
+{% extends "base.html" %}
+
+{% block title %}{{ model.name }}{% endblock %}
+
+{% block content %}
+<div class="model-detail">
+    <h1>{{ model.name }}</h1>
+    <div class="model-metadata">
+        {% if model.model_id %}
+        <span class="metadata-item">Model ID: {{ model.model_id }}</span>
+        {% endif %}
+    </div>
+
+    {% if model.description %}
+    <div class="model-description">
+        <h2>Description</h2>
+        <p>{{ model.description }}</p>
+    </div>
+    {% endif %}
+
+    <div class="model-providers">
+        <h2>Providers</h2>
+        {% if model.providers %}
+        <div class="providers-list">
+            {% for provider in model.providers %}
+            <div class="provider-item">
+                <div class="provider-header">
+                    <h3>{{ provider|title }}</h3>
+                </div>
+                {% if model.provider_details and provider in model.provider_details %}
+                <div class="provider-stats">
+                    <ul class="stats-list">
+                        {% if model.provider_details[provider].context %}
+                        <li>
+                            <span class="stat-label">Context Length:</span>
+                            <span class="stat-value">{{ model.provider_details[provider].context }}</span>
+                        </li>
+                        {% endif %}
+                        {% if model.provider_details[provider].max_output %}
+                        <li>
+                            <span class="stat-label">Max Output:</span>
+                            <span class="stat-value">{{ model.provider_details[provider].max_output }}</span>
+                        </li>
+                        {% endif %}
+                        {% if model.provider_details[provider].input_price %}
+                        <li>
+                            <span class="stat-label">Input Price:</span>
+                            <span class="stat-value">{{ model.provider_details[provider].input_price }}</span>
+                        </li>
+                        {% endif %}
+                        {% if model.provider_details[provider].output_price %}
+                        <li>
+                            <span class="stat-label">Output Price:</span>
+                            <span class="stat-value">{{ model.provider_details[provider].output_price }}</span>
+                        </li>
+                        {% endif %}
+                    </ul>
+                </div>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p>No provider information available</p>
+        {% endif %}
+    </div>
+
+    <div class="back-link">
+        <a href="/models">← Back to Models List</a>
+    </div>
+</div>
+
+<style>
+.model-detail {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 2rem;
+}
+
+.model-metadata {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    margin: 1rem 0 2rem;
+}
+
+.metadata-item {
+    background-color: #e9ecef;
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    font-family: monospace;
+    font-size: 0.9rem;
+    color: #495057;
+}
+
+.model-description {
+    background-color: #f8f9fa;
+    padding: 1.5rem;
+    border-radius: 8px;
+    margin: 2rem 0;
+}
+
+.model-description h2 {
+    margin-top: 0;
+    color: #333;
+}
+
+.model-providers {
+    margin: 2rem 0;
+}
+
+.providers-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    margin-top: 1rem;
+}
+
+.provider-item {
+    background-color: #f8f9fa;
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid #e9ecef;
+}
+
+.provider-header {
+    background-color: #007bff;
+    color: white;
+    padding: 1rem 1.5rem;
+}
+
+.provider-header h3 {
+    margin: 0;
+    font-size: 1.2rem;
+}
+
+.provider-stats {
+    padding: 1.5rem;
+}
+
+.stats-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.stats-list li {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem;
+    background-color: white;
+    border-radius: 4px;
+    border: 1px solid #e9ecef;
+}
+
+.stat-label {
+    color: #495057;
+    font-weight: 500;
+}
+
+.stat-value {
+    font-family: monospace;
+    color: #007bff;
+    font-weight: 600;
+}
+
+.back-link {
+    margin-top: 2rem;
+}
+
+.back-link a {
+    color: #007bff;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    font-weight: 500;
+}
+
+.back-link a:hover {
+    text-decoration: underline;
+}
+</style>
+{% endblock %}
