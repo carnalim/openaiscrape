@@ -71,8 +71,10 @@ def get_model_details(model_path):
                     provider: {
                         'context': '32K tokens',
                         'max_output': '4K tokens',
-                        'input_price': '$0.0005/1K tokens',
-                        'output_price': '$0.0005/1K tokens',
+                        'input_price': '$0.25/1K tokens',
+                        'output_price': '$0.25/1K tokens',
+                        'latency': '0.48s',
+                        'throughput': '90.36t/s',
                         'url': f'https://{provider}.ai' if provider != 'openrouter' else 'https://openrouter.ai'
                     }
                 },
@@ -82,16 +84,22 @@ def get_model_details(model_path):
         # Format pricing information
         context_window = model_data.get('context_length', 32000)
         context_window_k = f"{context_window // 1000}K"
+        max_output = model_data.get('max_output_tokens', 4000)
+        max_output_k = f"{max_output // 1000}K"
         input_price = model_data.get('pricing', {}).get('input', 0.0005)
         output_price = model_data.get('pricing', {}).get('output', 0.0005)
+        latency = model_data.get('latency', 0)
+        throughput = model_data.get('throughput', 0)
         
         # Create provider details
         provider_details = {
             provider: {
                 'context': f"{context_window_k} tokens",
-                'max_output': '4K tokens',
-                'input_price': f"${input_price:.4f}/1K tokens",
-                'output_price': f"${output_price:.4f}/1K tokens",
+                'max_output': f"{max_output_k} tokens",
+                'input_price': f"${input_price:.2f}/1K tokens",
+                'output_price': f"${output_price:.2f}/1K tokens",
+                'latency': f"{latency:.2f}s",
+                'throughput': f"{throughput:.2f}t/s",
                 'url': f'https://{provider}.ai' if provider != 'openrouter' else 'https://openrouter.ai'
             }
         }
@@ -118,8 +126,10 @@ def get_model_details(model_path):
                 'openrouter': {
                     'context': '32K tokens',
                     'max_output': '4K tokens',
-                    'input_price': '$0.0005/1K tokens',
-                    'output_price': '$0.0005/1K tokens',
+                    'input_price': '$0.25/1K tokens',
+                    'output_price': '$0.25/1K tokens',
+                    'latency': '0.48s',
+                    'throughput': '90.36t/s',
                     'url': 'https://openrouter.ai'
                 }
             },
