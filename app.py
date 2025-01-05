@@ -1,4 +1,4 @@
-from flask import Flask, render_template, abort, url_for
+from flask import Flask, render_template, abort, url_for, redirect, request
 import logging
 from scraper import init_db, scrape_models, get_models, get_model_by_slug
 import threading
@@ -55,8 +55,17 @@ def models():
             if model.get('providers') and model.get('provider_details') and model.get('description')
         ]
         
-        # Sort models by name
-        available_models.sort(key=lambda x: x['name'])
+        # Sort models, prioritizing Deepseek V3 models
+        def sort_key(model):
+            name = model['name'].lower()
+            model_id = model['model_id'].lower()
+            if 'deepseek' in name and 'v3' in name:
+                return ('0', name)  # '0' prefix to ensure Deepseek V3 comes first
+            elif 'codestral' in model_id and 'mamba' in model_id:
+                return ('1', name)  # '1' prefix to ensure Codestral Mamba comes second
+            return ('2', name)
+        
+        available_models.sort(key=sort_key)
         
         # Get total models being scraped
         global total_models_to_scrape
@@ -110,6 +119,44 @@ def model_detail(slug):
     except Exception as e:
         logger.error(f"Error retrieving model details: {str(e)}")
         logger.exception(e)  # This will log the full stack trace
+        abort(500)
+
+@app.route('/admin')
+def admin():
+    try:
+        # Set breadcrumbs
+        breadcrumbs = [
+            {'url': '/admin', 'text': 'Admin'}
+        ]
+        
+        # Get models count
+        model_list = get_models()
+        available_models = [
+            model for model in model_list
+            if model.get('providers') and model.get('provider_details') and model.get('description')
+        ]
+        
+        return render_template(
+            'admin.html',
+            total_models=total_models_to_scrape,
+            available_models=len(available_models),
+            breadcrumbs=breadcrumbs
+        )
+    except Exception as e:
+        logger.error(f"Error accessing admin page: {str(e)}")
+        logger.exception(e)
+        abort(500)
+
+@app.route('/admin/refresh', methods=['POST'])
+def refresh_models():
+    try:
+        # Reset the database and start scraping again
+        logger.info("Refreshing models database...")
+        initialize_data()
+        return redirect('/admin')
+    except Exception as e:
+        logger.error(f"Error refreshing models: {str(e)}")
+        logger.exception(e)
         abort(500)
 
 @app.errorhandler(404)

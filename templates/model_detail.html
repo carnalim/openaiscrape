@@ -5,7 +5,17 @@
 {% block content %}
 <div class="container">
     <div class="model-detail">
-        <h1>{{ model.name }}</h1>
+        <div class="model-header">
+            <h1>{{ model.name }}</h1>
+            {% if 'openrouter' in model.providers %}
+            <a href="https://openrouter.ai/models/{{ model.model_id }}" target="_blank" class="openrouter-link">
+                <svg class="openrouter-icon" viewBox="0 0 24 24" width="24" height="24">
+                    <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                View on OpenRouter
+            </a>
+            {% endif %}
+        </div>
         
         <div class="model-info">
             <div class="info-row">
@@ -69,6 +79,41 @@
     border-radius: 8px;
     padding: 2rem;
     box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.model-header {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 2rem;
+}
+
+.model-header h1 {
+    margin: 0;
+}
+
+.openrouter-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: #4f46e5;
+    text-decoration: none;
+    padding: 0.5rem 1rem;
+    border-radius: 0.5rem;
+    font-weight: 500;
+    transition: all 0.2s ease;
+    background-color: #f3f4f6;
+}
+
+.openrouter-link:hover {
+    background-color: #e5e7eb;
+    color: #4338ca;
+    transform: translateY(-1px);
+}
+
+.openrouter-icon {
+    width: 1.25rem;
+    height: 1.25rem;
 }
 
 .model-info {
@@ -177,6 +222,21 @@ code.info-value {
 @media (max-width: 768px) {
     .model-detail {
         padding: 1rem;
+    }
+    
+    .model-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 1rem;
+    }
+
+    .model-header h1 {
+        font-size: 1.75rem;
+    }
+
+    .openrouter-link {
+        width: 100%;
+        justify-content: center;
     }
     
     .info-row {

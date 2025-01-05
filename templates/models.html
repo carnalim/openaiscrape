@@ -19,10 +19,19 @@
 
     <div class="model-list">
         {% for model in models %}
-        <div class="model-item" data-name="{{ model.name.lower() }}" data-providers="{{ model.providers|join(' ')|lower }}">
+        <div class="model-item" data-name="{{ model.name.lower() }}" data-providers="{{ model.providers|join(' ')|lower }}" data-model-id="{{ model.model_id.lower() }}">
             <div class="model-header">
                 <div class="model-title" onclick="toggleModel('{{ model.slug }}')">
-                    <span class="model-name">{{ model.name }}</span>
+                    <div class="model-name-container">
+                        <span class="model-name">{{ model.name }}</span>
+                        {% if 'openrouter' in model.providers %}
+                        <a href="https://openrouter.ai/docs/models/{{ model.model_id }}" target="_blank" class="openrouter-link" onclick="event.stopPropagation()">
+                            <svg class="openrouter-icon" viewBox="0 0 24 24" width="20" height="20">
+                                <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                        </a>
+                        {% endif %}
+                    </div>
                     <div class="provider-tags">
                         {% for provider in model.providers %}
                         <span class="provider-tag">{{ provider|title }}</span>
@@ -118,8 +127,9 @@ document.addEventListener('DOMContentLoaded', function() {
         modelItems.forEach(item => {
             const modelName = item.dataset.name;
             const providers = item.dataset.providers;
+            const modelId = item.dataset.modelId;
             
-            if (modelName.includes(searchTerm) || providers.includes(searchTerm)) {
+            if (modelName.includes(searchTerm) || providers.includes(searchTerm) || modelId.includes(searchTerm)) {
                 item.classList.remove('hidden');
             } else {
                 item.classList.add('hidden');

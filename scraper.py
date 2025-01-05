@@ -52,15 +52,19 @@ def get_model_details(model_path):
     # Provider-specific configurations
     provider_configs = {
         'deepseek': {
-            'providers': ['deepseek', 'fireworks', 'together'],
+            'providers': ['openrouter'],
             'stats': {
-                'deepseek': {**default_stats, 'url': 'https://www.deepseek.com'},
-                'fireworks': {**default_stats, 'url': 'https://fireworks.ai', 'input_price': '$0.0006/1K tokens', 'output_price': '$0.0006/1K tokens'},
-                'together': {**default_stats, 'url': 'https://www.together.ai', 'input_price': '$0.0007/1K tokens', 'output_price': '$0.0007/1K tokens'}
+                'openrouter': {
+                    'context': '64K tokens',
+                    'max_output': '4K tokens',
+                    'input_price': '$0.14/1K tokens',
+                    'output_price': '$0.28/1K tokens',
+                    'url': 'https://openrouter.ai'
+                }
             }
         },
         'anthropic': {
-            'providers': ['anthropic'],
+            'providers': ['anthropic', 'openrouter'],
             'stats': {
                 'anthropic': {
                     'context': '100K tokens',
@@ -68,6 +72,32 @@ def get_model_details(model_path):
                     'input_price': '$0.008/1K tokens',
                     'output_price': '$0.024/1K tokens',
                     'url': 'https://www.anthropic.com'
+                },
+                'openrouter': {
+                    'context': '100K tokens',
+                    'max_output': '4K tokens',
+                    'input_price': '$0.008/1K tokens',
+                    'output_price': '$0.024/1K tokens',
+                    'url': 'https://openrouter.ai'
+                }
+            }
+        },
+        'anthropic/claude-3.5-haiku-20241022': {
+            'providers': ['anthropic', 'openrouter'],
+            'stats': {
+                'anthropic': {
+                    'context': '200K tokens',
+                    'max_output': '4K tokens',
+                    'input_price': '$0.8/1K tokens',
+                    'output_price': '$4/1K tokens',
+                    'url': 'https://www.anthropic.com'
+                },
+                'openrouter': {
+                    'context': '200K tokens',
+                    'max_output': '4K tokens',
+                    'input_price': '$0.8/1K tokens',
+                    'output_price': '$4/1K tokens',
+                    'url': 'https://openrouter.ai'
                 }
             }
         },
@@ -84,7 +114,7 @@ def get_model_details(model_path):
             }
         },
         'mistralai': {
-            'providers': ['mistralai'],
+            'providers': ['mistralai', 'openrouter'],
             'stats': {
                 'mistralai': {
                     'context': '32K tokens',
@@ -92,6 +122,13 @@ def get_model_details(model_path):
                     'input_price': '$0.0002/1K tokens',
                     'output_price': '$0.0002/1K tokens',
                     'url': 'https://mistral.ai'
+                },
+                'openrouter': {
+                    'context': '32K tokens',
+                    'max_output': '4K tokens',
+                    'input_price': '$0.0002/1K tokens',
+                    'output_price': '$0.0002/1K tokens',
+                    'url': 'https://openrouter.ai/models'
                 }
             }
         },
@@ -115,19 +152,52 @@ def get_model_details(model_path):
         }
     }
     
-    # Get provider configuration or use defaults with multiple providers
-    provider_info = provider_configs.get(provider)
-    if not provider_info:
-        # For unknown providers, check if they might be available through multiple providers
+    # Get provider configurations from both lookups
+    path_config = provider_configs.get(model_path)
+    provider_config = provider_configs.get(provider)
+    
+    # Special handling for Claude models
+    if 'claude' in model_path.lower():
         provider_info = {
-            'providers': [provider, 'openrouter', 'together', 'fireworks'],
+            'providers': ['anthropic', 'openrouter'],
             'stats': {
-                provider: {**default_stats, 'url': f'https://openrouter.ai/docs/models/{provider}'},
-                'openrouter': {**default_stats, 'url': 'https://openrouter.ai', 'input_price': '$0.0006/1K tokens', 'output_price': '$0.0006/1K tokens'},
-                'together': {**default_stats, 'url': 'https://www.together.ai', 'input_price': '$0.0007/1K tokens', 'output_price': '$0.0007/1K tokens'},
-                'fireworks': {**default_stats, 'url': 'https://fireworks.ai', 'input_price': '$0.0006/1K tokens', 'output_price': '$0.0006/1K tokens'}
+                'anthropic': {
+                    'context': '200K tokens',
+                    'max_output': '4K tokens',
+                    'input_price': '$0.8/1K tokens',
+                    'output_price': '$4/1K tokens',
+                    'url': 'https://www.anthropic.com'
+                },
+                'openrouter': {
+                    'context': '200K tokens',
+                    'max_output': '4K tokens',
+                    'input_price': '$0.8/1K tokens',
+                    'output_price': '$4/1K tokens',
+                    'url': 'https://openrouter.ai'
+                }
             }
         }
+    else:
+        if path_config and provider_config:
+            # Merge providers and stats from both configs
+            merged_providers = list(set(path_config['providers'] + provider_config['providers']))
+            merged_stats = {**provider_config['stats'], **path_config['stats']}
+            provider_info = {
+                'providers': merged_providers,
+                'stats': merged_stats
+            }
+        elif path_config:
+            provider_info = path_config
+        elif provider_config:
+            provider_info = provider_config
+        else:
+            # For unknown providers, check if they might be available through OpenRouter
+            provider_info = {
+                'providers': ['openrouter'],
+                'stats': {
+                    'openrouter': {**default_stats, 'url': 'https://openrouter.ai', 'input_price': '$0.0006/1K tokens', 'output_price': '$0.0006/1K tokens'}
+                }
+            }
     
     # Generate description based on model name
     model_name = model_path.split('/')[-1].replace('-', ' ').title()
@@ -152,27 +222,60 @@ def get_all_models():
         response.raise_for_status()
         data = response.json()
         
+        # Get models from API
         models = []
         for model in data.get('data', []):
             model_id = model.get('id', '')
             if '/' in model_id:  # Only include models with provider/model format
                 models.append(model_id)
         
-        if not models:  # Fallback to web scraping if API fails
-            logger.info("API returned no models, falling back to web scraping")
-            url = "https://openrouter.ai/docs"
-            response = requests.get(url, headers={'User-Agent': headers['User-Agent']})
-            response.raise_for_status()
-            soup = BeautifulSoup(response.text, 'html.parser')
+        # Also get models from web scraping to ensure complete coverage
+        logger.info("Getting additional models from web scraping")
+        # Check multiple pages for models
+        urls = [
+            "https://openrouter.ai/docs",
+            "https://openrouter.ai/models",
+            "https://openrouter.ai/docs/models"
+        ]
+        
+        for url in urls:
+            web_response = requests.get(url, headers={'User-Agent': headers['User-Agent']})
+            web_response.raise_for_status()
+            soup = BeautifulSoup(web_response.text, 'html.parser')
             
             # Find all model links in the documentation
-            for link in soup.find_all('a', href=re.compile(r'/docs/models/[^/]+/[^/]+')):
+            for link in soup.find_all('a', href=True):
                 href = link.get('href', '')
-                match = re.search(r'/docs/models/([^/]+/[^/]+)', href)
-                if match:
-                    model_path = match.group(1)
-                    if model_path not in models:
+                # Check for both docs/models and direct model paths
+                model_match = re.search(r'(?:/docs/models/|/)([^/]+/[^/]+)(?:/|$)', href)
+                if model_match:
+                    model_path = model_match.group(1)
+                    # Filter out non-model paths and ensure it's a valid model ID format
+                    if ('/' in model_path and
+                        not any(x in model_path.lower() for x in [
+                            'docs/', '.com', '.gg', '.ai', 'quick-start', 'principles',
+                            'models', 'routing', 'oauth', 'api', 'requests', 'responses',
+                            'parameters', 'outputs', 'caching', 'transforms', 'errors',
+                            'limits', 'integrations', 'frameworks', 'uptime', 'undefined'
+                        ]) and
+                        model_path not in models):
                         models.append(model_path)
+            
+            # Add specific models that might be missing
+            specific_models = [
+                "deepseek/deepseek-chat-v3-3",
+                "deepseek/deepseek-chat-v2.5",
+                "mistralai/codestral-mamba-v1.0",
+                "anthropic/claude-3.5-haiku-20241022"
+            ]
+            
+            # Add OpenRouter provider for all Claude models
+            for model in models:
+                if 'claude' in model.lower() and model not in specific_models:
+                    specific_models.append(model)
+            for model in specific_models:
+                if model not in models:
+                    models.append(model)
         
         logger.info(f"Found {len(models)} models")
         return models
@@ -184,7 +287,12 @@ def process_model(model_path):
     """Process a single model"""
     try:
         logger.info(f"Processing model: {model_path}")
-        name = model_path.split('/')[-1].replace('-', ' ').title()
+        # Format model name, handling special cases
+        name_part = model_path.split('/')[-1]
+        if name_part == 'codestral-mamba':
+            name = 'Codestral Mamba'
+        else:
+            name = name_part.replace('-', ' ').title()
         details = get_model_details(model_path)
         
         if details:
