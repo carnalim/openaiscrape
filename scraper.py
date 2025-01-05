@@ -38,183 +38,101 @@ def clean_text(text):
 
 def get_model_details(model_path):
     """Get detailed information for a model"""
-    provider = model_path.split('/')[0].lower()
-    
-    # Default provider stats
-    default_stats = {
-        'context': '32K tokens',
-        'max_output': '4K tokens',
-        'input_price': '$0.0005/1K tokens',
-        'output_price': '$0.0005/1K tokens',
-        'url': 'https://openrouter.ai/docs'
+    models_url = "https://openrouter.ai/api/v1/models"
+    headers = {
+        'Authorization': 'Bearer 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',
+        'HTTP-Referer': 'https://localhost:5000',
+        'Accept': 'application/json',
+        'User-Agent': 'OpenAIScraper/1.0.0'
     }
     
-    # Provider-specific configurations
-    provider_configs = {
-        'deepseek': {
-            'providers': ['openrouter'],
-            'stats': {
-                'openrouter': {
-                    'context': '64K tokens',
-                    'max_output': '4K tokens',
-                    'input_price': '$0.14/1K tokens',
-                    'output_price': '$0.28/1K tokens',
-                    'url': 'https://openrouter.ai'
-                }
-            }
-        },
-        'anthropic': {
-            'providers': ['anthropic', 'openrouter'],
-            'stats': {
-                'anthropic': {
-                    'context': '100K tokens',
-                    'max_output': '4K tokens',
-                    'input_price': '$0.008/1K tokens',
-                    'output_price': '$0.024/1K tokens',
-                    'url': 'https://www.anthropic.com'
+    try:
+        # Get all models
+        response = requests.get(models_url, headers=headers)
+        response.raise_for_status()
+        models_data = response.json()
+        
+        # Find the model in the API response
+        model_data = None
+        for model in models_data.get('data', []):
+            if model.get('id') == model_path:
+                model_data = model
+                break
+        
+        # Extract provider from model path
+        provider = model_path.split('/')[0]
+        providers = [provider]
+        
+        # Use default values if model not found
+        if not model_data:
+            return {
+                'providers': providers,
+                'provider_details': {
+                    provider: {
+                        'context': '32K tokens',
+                        'max_output': '4K tokens',
+                        'input_price': '$0.0005/1K tokens',
+                        'output_price': '$0.0005/1K tokens',
+                        'url': f'https://{provider}.ai' if provider != 'openrouter' else 'https://openrouter.ai'
+                    }
                 },
-                'openrouter': {
-                    'context': '100K tokens',
-                    'max_output': '4K tokens',
-                    'input_price': '$0.008/1K tokens',
-                    'output_price': '$0.024/1K tokens',
-                    'url': 'https://openrouter.ai'
-                }
+                'description': f"Advanced language model from {provider.title()} with strong performance across various tasks."
             }
-        },
-        'anthropic/claude-3.5-haiku-20241022': {
-            'providers': ['anthropic', 'openrouter'],
-            'stats': {
-                'anthropic': {
-                    'context': '200K tokens',
-                    'max_output': '4K tokens',
-                    'input_price': '$0.8/1K tokens',
-                    'output_price': '$4/1K tokens',
-                    'url': 'https://www.anthropic.com'
-                },
-                'openrouter': {
-                    'context': '200K tokens',
-                    'max_output': '4K tokens',
-                    'input_price': '$0.8/1K tokens',
-                    'output_price': '$4/1K tokens',
-                    'url': 'https://openrouter.ai'
-                }
+        
+        # Format pricing information
+        context_window = model_data.get('context_length', 32000)
+        context_window_k = f"{context_window // 1000}K"
+        input_price = model_data.get('pricing', {}).get('input', 0.0005)
+        output_price = model_data.get('pricing', {}).get('output', 0.0005)
+        
+        # Create provider details
+        provider_details = {
+            provider: {
+                'context': f"{context_window_k} tokens",
+                'max_output': '4K tokens',
+                'input_price': f"${input_price:.4f}/1K tokens",
+                'output_price': f"${output_price:.4f}/1K tokens",
+                'url': f'https://{provider}.ai' if provider != 'openrouter' else 'https://openrouter.ai'
             }
-        },
-        'openai': {
-            'providers': ['openai'],
-            'stats': {
-                'openai': {
-                    'context': '128K tokens',
-                    'max_output': '4K tokens',
-                    'input_price': '$0.01/1K tokens',
-                    'output_price': '$0.03/1K tokens',
-                    'url': 'https://openai.com'
-                }
-            }
-        },
-        'mistralai': {
-            'providers': ['mistralai', 'openrouter'],
-            'stats': {
-                'mistralai': {
-                    'context': '32K tokens',
-                    'max_output': '4K tokens',
-                    'input_price': '$0.0002/1K tokens',
-                    'output_price': '$0.0002/1K tokens',
-                    'url': 'https://mistral.ai'
-                },
+        }
+        
+        # Get description from API or generate one
+        description = model_data.get('description')
+        if not description:
+            provider = model_path.split('/')[0].title()
+            description = f"Advanced language model from {provider} with strong performance across various tasks."
+        
+        return {
+            'providers': providers,
+            'provider_details': provider_details,
+            'description': description
+        }
+        
+    except Exception as e:
+        logger.error(f"Error getting model details from API: {str(e)}")
+        # Fallback to default values on error
+        provider = model_path.split('/')[0].lower()
+        return {
+            'providers': providers if 'providers' in locals() else ['openrouter'],
+            'provider_details': {
                 'openrouter': {
                     'context': '32K tokens',
                     'max_output': '4K tokens',
-                    'input_price': '$0.0002/1K tokens',
-                    'output_price': '$0.0002/1K tokens',
-                    'url': 'https://openrouter.ai/models'
-                }
-            }
-        },
-        'inflatebot': {
-            'providers': ['inflatebot', 'openrouter', 'together', 'fireworks'],
-            'stats': {
-                'inflatebot': {**default_stats, 'url': 'https://openrouter.ai/docs'},
-                'openrouter': {**default_stats, 'url': 'https://openrouter.ai', 'input_price': '$0.0006/1K tokens', 'output_price': '$0.0006/1K tokens'},
-                'together': {**default_stats, 'url': 'https://www.together.ai', 'input_price': '$0.0007/1K tokens', 'output_price': '$0.0007/1K tokens'},
-                'fireworks': {**default_stats, 'url': 'https://fireworks.ai', 'input_price': '$0.0006/1K tokens', 'output_price': '$0.0006/1K tokens'}
-            }
-        },
-        'meta-llama': {
-            'providers': ['meta-llama', 'together', 'fireworks', 'openrouter'],
-            'stats': {
-                'meta-llama': {**default_stats, 'url': 'https://ai.meta.com'},
-                'together': {**default_stats, 'url': 'https://www.together.ai', 'input_price': '$0.0007/1K tokens', 'output_price': '$0.0007/1K tokens'},
-                'fireworks': {**default_stats, 'url': 'https://fireworks.ai', 'input_price': '$0.0006/1K tokens', 'output_price': '$0.0006/1K tokens'},
-                'openrouter': {**default_stats, 'url': 'https://openrouter.ai', 'input_price': '$0.0006/1K tokens', 'output_price': '$0.0006/1K tokens'}
-            }
-        }
-    }
-    
-    # Get provider configurations from both lookups
-    path_config = provider_configs.get(model_path)
-    provider_config = provider_configs.get(provider)
-    
-    # Special handling for Claude models
-    if 'claude' in model_path.lower():
-        provider_info = {
-            'providers': ['anthropic', 'openrouter'],
-            'stats': {
-                'anthropic': {
-                    'context': '200K tokens',
-                    'max_output': '4K tokens',
-                    'input_price': '$0.8/1K tokens',
-                    'output_price': '$4/1K tokens',
-                    'url': 'https://www.anthropic.com'
-                },
-                'openrouter': {
-                    'context': '200K tokens',
-                    'max_output': '4K tokens',
-                    'input_price': '$0.8/1K tokens',
-                    'output_price': '$4/1K tokens',
+                    'input_price': '$0.0005/1K tokens',
+                    'output_price': '$0.0005/1K tokens',
                     'url': 'https://openrouter.ai'
                 }
-            }
+            },
+            'description': f"Advanced language model from {provider.title()} with strong performance across various tasks."
         }
-    else:
-        if path_config and provider_config:
-            # Merge providers and stats from both configs
-            merged_providers = list(set(path_config['providers'] + provider_config['providers']))
-            merged_stats = {**provider_config['stats'], **path_config['stats']}
-            provider_info = {
-                'providers': merged_providers,
-                'stats': merged_stats
-            }
-        elif path_config:
-            provider_info = path_config
-        elif provider_config:
-            provider_info = provider_config
-        else:
-            # For unknown providers, check if they might be available through OpenRouter
-            provider_info = {
-                'providers': ['openrouter'],
-                'stats': {
-                    'openrouter': {**default_stats, 'url': 'https://openrouter.ai', 'input_price': '$0.0006/1K tokens', 'output_price': '$0.0006/1K tokens'}
-                }
-            }
-    
-    # Generate description based on model name
-    model_name = model_path.split('/')[-1].replace('-', ' ').title()
-    description = f"Advanced language model from {provider.title()} with strong performance across various tasks."
-    
-    return {
-        'providers': provider_info['providers'],
-        'provider_details': provider_info['stats'],
-        'description': description
-    }
 
 def get_all_models():
     """Get all models from OpenRouter.ai API"""
     api_url = "https://openrouter.ai/api/v1/models"
     headers = {
-        'Accept': 'application/json',
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+        'Authorization': 'Bearer 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',
+        'HTTP-Referer': 'https://localhost:5000',  # Required by OpenRouter
+        'Accept': 'application/json'
     }
     
     try:
@@ -228,54 +146,6 @@ def get_all_models():
             model_id = model.get('id', '')
             if '/' in model_id:  # Only include models with provider/model format
                 models.append(model_id)
-        
-        # Also get models from web scraping to ensure complete coverage
-        logger.info("Getting additional models from web scraping")
-        # Check multiple pages for models
-        urls = [
-            "https://openrouter.ai/docs",
-            "https://openrouter.ai/models",
-            "https://openrouter.ai/docs/models"
-        ]
-        
-        for url in urls:
-            web_response = requests.get(url, headers={'User-Agent': headers['User-Agent']})
-            web_response.raise_for_status()
-            soup = BeautifulSoup(web_response.text, 'html.parser')
-            
-            # Find all model links in the documentation
-            for link in soup.find_all('a', href=True):
-                href = link.get('href', '')
-                # Check for both docs/models and direct model paths
-                model_match = re.search(r'(?:/docs/models/|/)([^/]+/[^/]+)(?:/|$)', href)
-                if model_match:
-                    model_path = model_match.group(1)
-                    # Filter out non-model paths and ensure it's a valid model ID format
-                    if ('/' in model_path and
-                        not any(x in model_path.lower() for x in [
-                            'docs/', '.com', '.gg', '.ai', 'quick-start', 'principles',
-                            'models', 'routing', 'oauth', 'api', 'requests', 'responses',
-                            'parameters', 'outputs', 'caching', 'transforms', 'errors',
-                            'limits', 'integrations', 'frameworks', 'uptime', 'undefined'
-                        ]) and
-                        model_path not in models):
-                        models.append(model_path)
-            
-            # Add specific models that might be missing
-            specific_models = [
-                "deepseek/deepseek-chat-v3-3",
-                "deepseek/deepseek-chat-v2.5",
-                "mistralai/codestral-mamba-v1.0",
-                "anthropic/claude-3.5-haiku-20241022"
-            ]
-            
-            # Add OpenRouter provider for all Claude models
-            for model in models:
-                if 'claude' in model.lower() and model not in specific_models:
-                    specific_models.append(model)
-            for model in specific_models:
-                if model not in models:
-                    models.append(model)
         
         logger.info(f"Found {len(models)} models")
         return models

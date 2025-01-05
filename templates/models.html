@@ -10,27 +10,21 @@
         <input type="text" id="searchInput" placeholder="Search models by name or provider..." class="search-input">
     </div>
     
-    <div class="progress-info">
-        <p>Showing {{ available_models }} of {{ total_models }} models ({{ '%0.1f' | format(available_models / total_models * 100) }}% loaded)</p>
-        <div class="progress-bar">
-            <div class="progress" style="width: {{ '%0.1f' | format(available_models / total_models * 100) }}%;"></div>
-        </div>
-    </div>
-
     <div class="model-list">
         {% for model in models %}
         <div class="model-item" data-name="{{ model.name.lower() }}" data-providers="{{ model.providers|join(' ')|lower }}" data-model-id="{{ model.model_id.lower() }}">
             <div class="model-header">
                 <div class="model-title" onclick="toggleModel('{{ model.slug }}')">
                     <div class="model-name-container">
-                        <span class="model-name">{{ model.name }}</span>
-                        {% if 'openrouter' in model.providers %}
-                        <a href="https://openrouter.ai/docs/models/{{ model.model_id }}" target="_blank" class="openrouter-link" onclick="event.stopPropagation()">
-                            <svg class="openrouter-icon" viewBox="0 0 24 24" width="20" height="20">
-                                <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                            </svg>
-                        </a>
-                        {% endif %}
+                        <div class="name-with-link">
+                            <span class="model-name">{{ model.name }}</span>
+                            <a href="https://openrouter.ai/{{ model.model_id }}" target="_blank" class="link-icon" onclick="event.stopPropagation()" title="View on OpenRouter">
+                                <svg viewBox="0 0 24 24" width="16" height="16">
+                                    <path d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                </svg>
+                            </a>
+                        </div>
+                        <a href="/model/{{ model.slug }}" class="view-details-btn" onclick="event.stopPropagation()">View Details</a>
                     </div>
                     <div class="provider-tags">
                         {% for provider in model.providers %}
@@ -39,7 +33,6 @@
                     </div>
                     <span class="expand-icon" id="icon-{{ model.slug }}">▼</span>
                 </div>
-                <a href="/model/{{ model.slug }}" class="view-details-btn">View Full Details</a>
             </div>
             
             <div class="model-details" id="{{ model.slug }}" style="display: none;">
@@ -101,6 +94,22 @@
         </div>
         {% endfor %}
     </div>
+    
+    {% if total_pages > 1 %}
+    <div class="pagination">
+        <div class="pagination-controls">
+            {% if current_page > 1 %}
+            <a href="{{ url_for('models', page=current_page-1) }}" class="page-btn">Previous</a>
+            {% endif %}
+            
+            <span class="page-info">Page {{ current_page }} of {{ total_pages }}</span>
+            
+            {% if current_page < total_pages %}
+            <a href="{{ url_for('models', page=current_page+1) }}" class="page-btn">Next</a>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
 </div>
 
 <script>
@@ -135,16 +144,18 @@ document.addEventListener('DOMContentLoaded', function() {
                 item.classList.add('hidden');
             }
         });
+
+        // Hide pagination if searching
+        const pagination = document.querySelector('.pagination');
+        if (pagination) {
+            if (searchTerm) {
+                pagination.style.display = 'none';
+            } else {
+                pagination.style.display = 'flex';
+            }
+        }
     });
     
-    var availableModels = parseInt('{{ available_models or 0 }}');
-    var totalModels = parseInt('{{ total_models or 0 }}');
-    
-    if (totalModels > 0 && availableModels < totalModels) {
-        setTimeout(function() {
-            window.location.reload();
-        }, 5000);
-    }
 });
 </script>
 {% endblock %}

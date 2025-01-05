@@ -40,6 +40,10 @@ def home():
 @app.route('/models')
 def models():
     try:
+        # Get page number from query parameters, default to 1
+        page = int(request.args.get('page', 1))
+        per_page = 20
+        
         # Set breadcrumbs
         breadcrumbs = [
             {'url': '/models', 'text': 'Models'}
@@ -51,7 +55,7 @@ def models():
         
         # Only show models that have been fully downloaded
         available_models = [
-            model for model in model_list 
+            model for model in model_list
             if model.get('providers') and model.get('provider_details') and model.get('description')
         ]
         
@@ -66,6 +70,18 @@ def models():
             return ('2', name)
         
         available_models.sort(key=sort_key)
+        
+        # Calculate pagination
+        total_models = len(available_models)
+        total_pages = (total_models + per_page - 1) // per_page
+        
+        # Ensure page is within valid range
+        page = max(1, min(page, total_pages))
+        
+        # Slice the models list for current page
+        start_idx = (page - 1) * per_page
+        end_idx = start_idx + per_page
+        paginated_models = available_models[start_idx:end_idx]
         
         # Get total models being scraped
         global total_models_to_scrape
@@ -88,11 +104,14 @@ def models():
             logger.info(f"Model: {model['name']}, Providers: {model['providers']}")
         
         return render_template(
-            'models.html', 
-            models=available_models,
+            'models.html',
+            models=paginated_models,
             total_models=total_models_to_scrape,
             available_models=len(available_models),
-            breadcrumbs=breadcrumbs
+            breadcrumbs=breadcrumbs,
+            current_page=page,
+            total_pages=total_pages,
+            per_page=per_page
         )
     except Exception as e:
         logger.error(f"Error retrieving models: {str(e)}")
