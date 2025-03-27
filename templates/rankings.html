@@ -1,0 +1,54 @@
+{% extends 'base.html' %}
+
+{% block title %}Model Rankings{% endblock %}
+
+{% block content %}
+<div class="models-container">
+    <h1>Model Rankings</h1>
+
+    <div class="category-selector" style="margin-bottom: 24px;">
+        <label for="category-select" style="margin-right: 8px; font-weight: 600;">Category:</label>
+        <select id="category-select" onchange="location = this.value;" style="padding: 8px 12px; border-radius: 4px; border: 1px solid var(--border-color);">
+            {% for cat in categories %}
+                <option value="{{ url_for('rankings', category=cat) }}" {% if cat == current_category %}selected{% endif %}>
+                    {{ cat.capitalize() }}
+                </option>
+            {% endfor %}
+        </select>
+        <span style="margin-left: 16px; color: var(--text-secondary); font-size: 13px;">(Weekly View)</span>
+    </div>
+
+    {% if rankings %}
+        <div class="table-responsive">
+            <table class="comparison-table">
+                <thead>
+                    <tr>
+                        <th>Rank</th>
+                        <th>Model</th>
+                        <th>Score</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in rankings %}
+                        <tr>
+                            <td>#{{ item.rank }}</td>
+                            <td>
+                                {% if item.model_slug %}
+                                    <a href="{{ url_for('model_detail', slug=item.model_slug.split('/')[-1]) }}" class="provider-link" title="View Details for {{ item.model_name }}">
+                                        {{ item.model_name }}
+                                    </a>
+                                {% else %}
+                                    {{ item.model_name }}
+                                {% endif %}
+                            </td>
+                            <td>{{ '%.2f'|format(item.score) if item.score is not none else 'N/A' }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <p class="no-data">No ranking data available for this category.</p>
+    {% endif %}
+</div>
+{% endblock %}

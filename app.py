@@ -1,7 +1,12 @@
 from flask import Flask, render_template, abort, url_for, redirect, request, send_file
 import logging
-from scraper import init_db, scrape_models, get_models, get_model_by_slug
+from scraper import (
+    init_db, scrape_models, get_models, get_model_by_slug,
+    get_rankings_by_category, get_all_apps, scrape_rankings, store_ranking_data,
+    scrape_apps, store_app_data
+)
 import threading
+import concurrent.futures
 import sqlite3
 import os
 import csv
@@ -27,6 +32,60 @@ def initialize_database():
     except Exception as e:
         logger.error(f"Error initializing database: {str(e)}")
         return False
+
+# --- Helper functions for concurrent scraping ---
+def scrape_and_store_models_task(stop_check):
+    logger.info("Starting model scraping task...")
+    try:
+        models = scrape_models(stop_check)
+        if not stop_check():
+            logger.info(f"Finished scraping {len(models)} models.")
+        else:
+            logger.info("Model scraping task stopped.")
+    except Exception as e:
+        logger.error(f"Error in model scraping task: {e}")
+        logger.exception(e)
+
+def scrape_and_store_rankings_task(stop_check):
+    logger.info("Starting ranking scraping task...")
+    try:
+        categories_to_scrape = ['general', 'roleplay', 'programming']
+        all_rankings = []
+        for category in categories_to_scrape:
+            if stop_check():
+                logger.info("Ranking scraping task stopped during category loop.")
+                return
+            logger.info(f"Scraping '{category}' rankings...")
+            rankings = scrape_rankings(category=category, view='week')
+            all_rankings.extend(rankings)
+
+        if not stop_check():
+            store_ranking_data(all_rankings)
+            logger.info("Finished scraping and storing rankings.")
+        else:
+            logger.info("Ranking scraping task stopped before storing.")
+    except Exception as e:
+        logger.error(f"Error in ranking scraping task: {e}")
+        logger.exception(e)
+
+def scrape_and_store_apps_task(stop_check):
+    logger.info("Starting app scraping task...")
+    try:
+        apps = scrape_apps()
+        if not stop_check():
+            store_app_data(apps)
+            logger.info("Finished scraping and storing apps.")
+        else:
+            logger.info("App scraping task stopped.")
+    except Exception as e:
+        logger.error(f"Error in app scraping task: {e}")
+        logger.exception(e)
+# --- End Helper functions ---
+
+        return True
+    except Exception as e:
+        logger.error(f"Error initializing database: {str(e)}")
+        return False
 def start_scraping():
     """Start scraping models in a background thread"""
     global is_scraping, should_stop_scraping, total_models_to_scrape
@@ -36,17 +95,37 @@ def start_scraping():
         try:
             is_scraping = True
             should_stop_scraping = False
-            logger.info("Scraping models...")
-            models = scrape_models(lambda: should_stop_scraping)  # Pass stop check callback
+            logger.info("Starting concurrent full scrape process...")
+
+            # Define the tasks to run concurrently
+            tasks = [
+                scrape_and_store_models_task,
+                scrape_and_store_rankings_task,
+                scrape_and_store_apps_task
+            ]
+
+            # Use ThreadPoolExecutor to run tasks concurrently
+            with concurrent.futures.ThreadPoolExecutor(max_workers=len(tasks)) as executor:
+                # Pass the stop check lambda to each task
+                stop_check = lambda: should_stop_scraping
+                futures = [executor.submit(task, stop_check) for task in tasks]
+
+                # Wait for all tasks to complete (or be stopped)
+                # concurrent.futures.wait(futures) # No need to explicitly wait if just logging completion
+
             if should_stop_scraping:
-                logger.info("Scraping was stopped by user")
+                logger.info("Full scraping process was stopped by user.")
             else:
-                logger.info(f"Successfully scraped {len(models)} models")
+                logger.info("Full scraping process completed (or tasks finished).")
+
         except Exception as e:
-            logger.error(f"Error scraping models: {str(e)}")
+            logger.error(f"Error during concurrent scraping process: {str(e)}")
+            logger.exception(e)
         finally:
             is_scraping = False
+            # Reset stop flag regardless of completion status
             should_stop_scraping = False
+            logger.info("Scraping worker finished.")
     
     if not is_scraping:
         thread = threading.Thread(target=scrape_worker)
@@ -173,7 +252,8 @@ def models():
                 total_models_to_scrape = 217  # Default if database error
         
         logger.info(f"Retrieved {len(available_models)} available models out of {total_models_to_scrape} total models")
-        
+
+        # Return the rendered template with paginated models and other data
         return render_template(
             'models.html',
             models=paginated_models,
@@ -188,7 +268,54 @@ def models():
     except Exception as e:
         logger.error(f"Error retrieving models: {str(e)}")
         logger.exception(e)  # This will log the full stack trace
-        return render_template('models.html', models=[], total_models=217, available_models=0, breadcrumbs=breadcrumbs, is_scraping=is_scraping)
+        # Ensure breadcrumbs is defined even in case of error before rendering
+        breadcrumbs = [{'url': '/models', 'text': 'Models'}] # Define breadcrumbs here for the error case
+        # Return error template or a simplified models page
+        return render_template('models.html', models=[], total_models=0, available_models=0, breadcrumbs=breadcrumbs, is_scraping=is_scraping, current_page=1, total_pages=1, error=str(e))
+
+@app.route('/rankings')
+def rankings():
+    try:
+        category = request.args.get('category', 'general') # Default to general
+        valid_categories = ['general', 'roleplay', 'programming']
+        if category not in valid_categories:
+            category = 'general' # Fallback to general if invalid
+
+        logger.info(f"Fetching rankings for category: {category}")
+        ranking_list = get_rankings_by_category(category)
+
+        breadcrumbs = [
+            {'url': '/rankings', 'text': 'Rankings'},
+            {'url': f'/rankings?category={category}', 'text': category.capitalize()}
+        ]
+
+        return render_template(
+            'rankings.html',
+            rankings=ranking_list,
+            current_category=category,
+            categories=valid_categories,
+            breadcrumbs=breadcrumbs
+        )
+    except Exception as e:
+        logger.error(f"Error retrieving rankings: {str(e)}")
+        logger.exception(e)
+        abort(500)
+
+@app.route('/apps')
+def apps():
+    try:
+        logger.info("Fetching app showcase data...")
+        app_list = get_all_apps()
+
+        breadcrumbs = [
+            {'url': '/apps', 'text': 'App Showcase'}
+        ]
+
+        return render_template('apps.html', apps=app_list, breadcrumbs=breadcrumbs)
+    except Exception as e:
+        logger.error(f"Error retrieving apps: {str(e)}")
+        logger.exception(e)
+        abort(500)
 
 @app.route('/model/<slug>')
 def model_detail(slug):

@@ -1,0 +1,40 @@
+{% extends 'base.html' %}
+
+{% block title %}App Showcase{% endblock %}
+
+{% block content %}
+<div class="models-container">
+    <h1>App Showcase</h1>
+    <p style="margin-bottom: 24px; color: var(--text-secondary);">Apps built using OpenRouter, sorted by token usage.</p>
+
+    {% if apps %}
+        <div class="apps-grid" style="display: grid; gap: 24px; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));">
+            {% for app in apps %}
+                <div class="app-card" style="background-color: var(--surface-color); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 20px; transition: all var(--motion-duration-normal) var(--motion-easing-natural);">
+                    <a href="{{ app.app_url }}" target="_blank" rel="noopener noreferrer" style="text-decoration: none;">
+                        <h3 style="font-size: 18px; font-weight: 600; color: var(--primary-color); margin-bottom: 8px;">{{ app.app_name }}</h3>
+                    </a>
+                    {% if app.token_count_raw %}
+                        <p style="color: var(--text-secondary); font-size: 14px;">
+                            Token Usage: <strong style="color: var(--text-primary);">{{ app.token_count_raw }}</strong>
+                        </p>
+                    {% endif %}
+                     <a href="{{ app.app_url }}" target="_blank" rel="noopener noreferrer" class="provider-link" style="margin-top: 12px; font-size: 13px;">
+                        Visit App
+                        <svg class="external-link-icon" style="width: 1em; height: 1em; margin-left: 4px;" viewBox="0 0 16 16" fill="currentColor"><path d="M13.5 2H8.25a.75.75 0 0 0 0 1.5h2.94L6.32 8.37a.75.75 0 1 0 1.06 1.06L12.25 4.56v2.94a.75.75 0 0 0 1.5 0V2.75A.75.75 0 0 0 13.5 2zM3.75 4a.75.75 0 0 0-.75.75v7.5c0 .414.336.75.75.75h7.5a.75.75 0 0 0 .75-.75v-4a.75.75 0 0 0-1.5 0v4h-7.5v-7.5H8a.75.75 0 0 0 0-1.5H3.75z"></path></svg>
+                    </a>
+                </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <p class="no-data">No app showcase data available.</p>
+    {% endif %}
+</div>
+
+<style>
+.app-card:hover {
+    box-shadow: var(--shadow-md);
+    transform: translateY(-2px);
+}
+</style>
+{% endblock %}
